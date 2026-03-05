@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Web App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <h1>Login</h1>
+      <form id="fluid-login-form" data-render="login_form">
+        <label for="username" data-render="u_label"></label>
+        <input type="text" id="username" name="username" required />
+        <label for="password" data-render="p_label"></label>
+        <input type="password" id="password" name="password" required />
+        <button type="submit" data-render="btn_text"></button>
+      </form>
+    </div>
+    <script src="app.js" defer></script>
+  </body>
+</html>

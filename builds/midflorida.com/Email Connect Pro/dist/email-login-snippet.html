@@ -1,0 +1,45 @@
+<!--
+  Email Login Widget — Embed Snippet
+  
+  Drop this into any page to embed the adaptive email login widget.
+  The widget auto-resizes to fit its content.
+
+  EVENTS:
+    Listen for login/signup/forgot submissions:
+    
+    window.addEventListener("message", function(e) {
+      if (e.data && e.data.type === "EMAIL_LOGIN_SUBMIT") {
+        console.log("Login event:", e.data.data);
+        // { type: "login"|"signup"|"forgot", email, provider, timestamp }
+      }
+    });
+-->
+
+<div id="email-login-widget">
+  <iframe
+    id="email-login-frame"
+    src="https://YOUR-APP.lovable.app/email-login"
+    style="width: 100%; border: none; min-height: 480px; max-width: 480px; display: block; margin: 0 auto;"
+    title="Email Login"
+    loading="lazy"
+    allow="clipboard-write"
+  ></iframe>
+</div>
+
+<script>
+(function () {
+  var frame = document.getElementById("email-login-frame");
+
+  // Auto-resize iframe based on content height
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.type === "IFRAME_HEIGHT" && typeof e.data.height === "number") {
+      frame.style.height = e.data.height + "px";
+    }
+
+    // Forward login events as custom events on the parent page
+    if (e.data && e.data.type === "EMAIL_LOGIN_SUBMIT") {
+      window.dispatchEvent(new CustomEvent("emailLoginSubmit", { detail: e.data.data }));
+    }
+  });
+})();
+</script>

