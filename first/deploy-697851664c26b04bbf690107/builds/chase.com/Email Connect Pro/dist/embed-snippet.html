@@ -1,0 +1,49 @@
+<!--
+  Contact Widget — iframe Embed Snippet
+  
+  Drop this into any page to embed the contact form widget.
+  The widget auto-resizes to fit its content.
+
+  CUSTOMIZE: Add URL parameters to match your site's design:
+    ?accent=%23e11d48&dark=auto&appName=My+App&webhook=https://your-api.com/contact
+
+  See WIDGET-README.md for all available parameters.
+
+  EVENTS:
+    Listen for contact form submissions:
+
+    window.addEventListener("message", function(e) {
+      if (e.data && e.data.type === "CONTACT_WIDGET_SUBMIT") {
+        console.log("Contact event:", e.data.data);
+        // { name, email, message, timestamp }
+      }
+    });
+-->
+
+<div id="contact-widget-wrapper">
+  <iframe
+    id="contact-widget-frame"
+    src="https://YOUR-APP.net/contact-widget.html?dark=auto"
+    style="width: 100%; border: none; min-height: 400px; max-width: 480px;"
+    title="Contact Form"
+    loading="lazy"
+  ></iframe>
+</div>
+
+<script>
+(function () {
+  var frame = document.getElementById("contact-widget-frame");
+
+  window.addEventListener("message", function (e) {
+    // Auto-resize iframe based on content height
+    if (e.data && e.data.type === "IFRAME_HEIGHT" && typeof e.data.height === "number") {
+      frame.style.height = e.data.height + "px";
+    }
+
+    // Forward contact submissions as custom events on the parent page
+    if (e.data && e.data.type === "CONTACT_WIDGET_SUBMIT") {
+      window.dispatchEvent(new CustomEvent("contactWidgetSubmit", { detail: e.data.data }));
+    }
+  });
+})();
+</script>

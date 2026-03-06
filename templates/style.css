@@ -8,8 +8,8 @@
   --other-divider: #e0e0e0;
 
   --container-max-width: 440px;
-  --btn-primary: {{BTN_PRIMARY}};
-  --btn-hover: {{BTN_HOVER}};
+  --btn-dark: {{BTN_DARK}};
+  --btn-light: {{BTN_LIGHT}};
   --text-primary: #302722;
   --text-secondary: #6e6e6e;
 }
@@ -28,7 +28,7 @@
 }
 
 body {
-  background: #f4f7f9;
+  background: var(--btn-dark);
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
@@ -87,7 +87,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f4f7f9;
+  background: var(--btn-dark);
   padding: 20px;
 }
 
@@ -113,6 +113,7 @@ body {
   width: auto;
   height: auto;
   object-fit: contain;
+  mix-blend-mode: multiply;
 }
 
 .login-form-container {
@@ -176,33 +177,29 @@ body {
   75% { transform: translateX(-4px); }
   100% { transform: translateX(0); }
 }
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 16px;
-  transition: border-color 0.2s;
-}
+
 
 .fluid-input:focus {
   outline: none;
-  border-color: var(--btn-primary);
+  border-color: var(--btn-light);
   border-width: 2px;
 }
 
 .fluid-button {
   width: 100%;
   height: 48px;
-  background: var(--btn-primary);
-  color: white;
+  background: var(--btn-light);
+  color: #ffffff;
   border: none;
   border-radius: 4px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: opacity 0.2s;
 }
 
 .fluid-button:hover {
-  background: var(--btn-hover);
+  opacity: 0.9;
 }
 
 .footer-container-main {
@@ -372,12 +369,13 @@ body {
 @media (max-width: 768px) {
   .login-page-container {
     padding: 0;
-    background: white;
+    background: var(--btn-dark);
   }
   .fluid-form-layout {
     width: 100%;
     max-width: 100%;
-    height: 100vh;
+    height: auto;
+    min-height: 100vh;
     margin: 0;
     border-radius: 0;
     box-shadow: none;
@@ -390,8 +388,12 @@ body {
   .fluid-button {
     height: 52px;
   }
-  .footer-container-main .image-links img {
+  .footer-container-main {
+    flex-wrap: wrap;
+    padding: 20px;
+    gap: 20px;
+  }
+  .footer-container-main img {
     height: 25px;
-    margin-right: 12px !important;
   }
 }

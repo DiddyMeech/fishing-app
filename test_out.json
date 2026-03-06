@@ -1,0 +1,96 @@
+{
+  "title": "DuPage Credit Union",
+  "icon": "https://assets.orb.alkamitech.com/production/themesets/b6136c42-532d-4965-863c-8d2ea3afa041/themes/theme-builder/default/assets/favicons/favicon.png",
+  "imgs": [
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/themesets/b6136c42-532d-4965-863c-8d2ea3afa041/themes/theme-builder/default/assets/images/brand-logo-wide.png",
+      "className": "header__logo-img",
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "html": "<img alt=\"DuPage Credit Union Dashboard\" class=\"header__logo-img\" src=\"https://assets.orb.alkamitech.com/production/themesets/b6136c42-532d-4965-863c-"
+    },
+    {
+      "tag": "svg",
+      "src": "",
+      "className": "irisv-avatar__svg",
+      "width": 0,
+      "height": 0,
+      "top": 0,
+      "html": "<svg viewBox=\"0 0 104 104\" class=\"irisv-avatar__svg\" style=\"width: 40px; height: 40px; display: none;\"><path d=\"M52.05, 2.17a50, 50, 0, 1, 1-50, 50, 5"
+    },
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/themesets/b6136c42-532d-4965-863c-8d2ea3afa041/themes/theme-builder/default/assets/images/brand-logo-wide.png",
+      "className": "",
+      "width": 195,
+      "height": 75,
+      "top": 257,
+      "html": "<img data-v-c52c9d48=\"\" src=\"https://assets.orb.alkamitech.com/production/themesets/b6136c42-532d-4965-863c-8d2ea3afa041/themes/theme-builder/default/"
+    },
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/themesets/b6136c42-532d-4965-863c-8d2ea3afa041/themes/theme-builder/default/assets/images/brand-logo-footer.png",
+      "className": "",
+      "width": 199.953125,
+      "height": 57.96875,
+      "top": 983.5,
+      "html": "<img src=\"https://assets.orb.alkamitech.com/production/themesets/b6136c42-532d-4965-863c-8d2ea3afa041/themes/theme-builder/default/assets/images/brand"
+    },
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/assets/themes/images/appLogos/google-play.svg",
+      "className": "",
+      "width": 135,
+      "height": 40,
+      "top": 1095.5,
+      "html": "<img src=\"https://assets.orb.alkamitech.com/production/assets/themes/images/appLogos/google-play.svg\" alt=\"Google Play Store\">"
+    },
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/assets/themes/images/appLogos/app-store.svg",
+      "className": "",
+      "width": 120,
+      "height": 40,
+      "top": 1095.5,
+      "html": "<img src=\"https://assets.orb.alkamitech.com/production/assets/themes/images/appLogos/app-store.svg\" alt=\"Apple App Store\">"
+    },
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/assets/global/images/browser_unsupported/browsers/edge.png",
+      "className": "",
+      "width": 20,
+      "height": 20,
+      "top": 414,
+      "html": "<img width=\"20\" height=\"20\" src=\"https://assets.orb.alkamitech.com/production/assets/global/images/browser_unsupported/browsers/edge.png\" title=\"Edge\""
+    },
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/assets/global/images/browser_unsupported/browsers/ff.png",
+      "className": "",
+      "width": 20,
+      "height": 20,
+      "top": 438,
+      "html": "<img width=\"20\" height=\"20\" src=\"https://assets.orb.alkamitech.com/production/assets/global/images/browser_unsupported/browsers/ff.png\" title=\"Mozilla"
+    },
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/assets/global/images/browser_unsupported/browsers/chrome.png",
+      "className": "",
+      "width": 20,
+      "height": 20,
+      "top": 462,
+      "html": "<img width=\"20\" height=\"20\" src=\"https://assets.orb.alkamitech.com/production/assets/global/images/browser_unsupported/browsers/chrome.png\" title=\"Goo"
+    },
+    {
+      "tag": "IMG",
+      "src": "https://assets.orb.alkamitech.com/production/assets/global/images/browser_unsupported/browsers/safari.png",
+      "className": "",
+      "width": 20,
+      "height": 20,
+      "top": 486,
+      "html": "<img width=\"20\" height=\"20\" src=\"https://assets.orb.alkamitech.com/production/assets/global/images/browser_unsupported/browsers/safari.png\" title=\"Saf"
+    }
+  ]
+}

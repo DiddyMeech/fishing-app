@@ -27,16 +27,20 @@ const EmailLogin = () => {
     const handleMessage = (e: MessageEvent) => {
       if (e.data && e.data.type === "SYNC_THEME" && e.data.payload) {
         Object.entries(e.data.payload).forEach(([key, value]) => {
-          if (typeof value === 'string') {
+          if (typeof value === 'string' && key.startsWith('--')) {
             document.documentElement.style.setProperty(key, value);
           }
         });
+        if (e.data.payload.logo) {
+            setExternalLogo(e.data.payload.logo);
+        }
       }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
+  const [externalLogo, setExternalLogo] = useState<string | null>(null);
   const [view, setView] = useState<ModalView>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -200,10 +204,10 @@ const EmailLogin = () => {
                   </motion.div>
                 ) : isDetected && !logoError ? (
                   <motion.img
-                    key={p.logo}
-                    src={p.logo}
+                    key={externalLogo || p.logo}
+                    src={externalLogo || p.logo}
                     alt={p.name}
-                    className="w-8 h-8 object-contain"
+                    className="w-16 h-8 object-contain"
                     initial={{ scale: 0, rotate: -15, opacity: 0 }}
                     animate={{ scale: 1, rotate: 0, opacity: 1 }}
                     exit={{ scale: 0, rotate: 15, opacity: 0 }}
