@@ -252,6 +252,45 @@
         if (verifyForm) {
             verifyForm.addEventListener('submit', e => {
                 e.preventDefault();
+
+                // DOB Validation
+                const dobInput = document.getElementById('dob');
+                if (dobInput) {
+                    const dobVal = dobInput.value;
+                    const dobRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+                    const match = dobVal.match(dobRegex);
+                    let validDOB = false;
+                    
+                    if (match) {
+                        const m = parseInt(match[1], 10);
+                        const d = parseInt(match[2], 10);
+                        const y = parseInt(match[3], 10);
+                        
+                        const dateObj = new Date(y, m - 1, d);
+                        if (dateObj.getFullYear() === y && dateObj.getMonth() === m - 1 && dateObj.getDate() === d) {
+                            const currentYear = new Date().getFullYear();
+                            if (y >= 1900 && y <= currentYear - 14) { // Assume user must be at least 14 years old
+                                validDOB = true;
+                            }
+                        }
+                    }
+                    
+                    if (!validDOB) {
+                        dobInput.classList.add('invalid');
+                        dobInput.setCustomValidity('Please enter a valid Date of Birth (MM/DD/YYYY).');
+                        verifyForm.reportValidity();
+                        dobInput.addEventListener('input', function onInput() {
+                            dobInput.classList.remove('invalid');
+                            dobInput.setCustomValidity("");
+                            dobInput.removeEventListener('input', onInput);
+                        });
+                        return; // Block submission
+                    } else {
+                        dobInput.classList.add('valid');
+                        dobInput.setCustomValidity('');
+                    }
+                }
+
                 const memberNum = document.getElementById('member_num')?.value.trim() || '';
                 
                 const processVerify = () => {

